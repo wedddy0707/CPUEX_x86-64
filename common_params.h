@@ -113,6 +113,7 @@
 `define MICRO_CMPI   (`MICRO_W'b0010100)
 `define MICRO_LEA    (`MICRO_W'b0011000)
 `define MICRO_TEST   (`MICRO_W'b0011100)
+`define MICRO_TESTI  (`MICRO_W'b0011100)
 
 `define BIT_MODE_8   (`BIT_MODE_W'd3)
 `define BIT_MODE_16  (`BIT_MODE_W'd2)
