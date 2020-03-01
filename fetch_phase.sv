@@ -418,12 +418,11 @@ module fetch_phase #(
               /******************************************************
               * Lea can be regarded as a special type of Mov r,r/m
               * because it can be realized by
-              *   - replacing a Load-type instruction with ADDI, and
-              *   - interpret [disp] as [imm]
+              *   - replacing a Load-type instruction with ADDI
               * of Mov (see below).
               *
               * Mov:
-              *   Load  $temp $r/m [disp]
+              *   Load  $temp $r/m [imm]
               *   Mov   $r    $temp
               *
               * Lea:
@@ -754,7 +753,7 @@ module fetch_phase #(
                   mic_reg_addr_s[`MICRO_Q_SCALE] <=`SCL_ADDR;
                   mic_reg_addr_t[`MICRO_Q_SCALE] <=`SCL_ADDR;
                   mic_reg_addr_s[`MICRO_Q_LOAD ] <=`SCL_ADDR;
-                  state <= S_DISPLACEMENT;
+                  state                          <= S_DISPLACEMENT;
                 end
                 3'b100 :// SIBが後続
                 begin
@@ -782,16 +781,18 @@ module fetch_phase #(
               endcase
             end
             default: /* = 2'b11 */ begin
-              /************************************************************
-              * メモリアクセス無しの命令であることが判明するので
-              * Load, Store を Nop に置き換え、
-              * メインとなる命令のオペランドを指定しなおす
-              */
               state                          <= S_OPCODE_1;
               mic_inst_valid                 <= 1;
               mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_NOP;
-              mic_reg_addr_d[`MICRO_Q_ARITH] <=`REG_ADDR_W'({rex_b,inst[2:0]});
-              mic_reg_addr_s[`MICRO_Q_ARITH] <=`REG_ADDR_W'({rex_b,inst[2:0]});
+              case (substate_modrm_dest_r)
+                MODRM_DEST_R_LEA: begin
+                  mic_opcode    [`MICRO_Q_ARITH]<=`MICRO_MOVI;
+                  mic_immediate [`MICRO_Q_ARITH]<=`IMM_W'({rex_b,inst[2:0]});
+                end
+                default: begin
+                  mic_reg_addr_t[`MICRO_Q_ARITH]<=`REG_ADDR_W'({rex_b,inst[2:0]});
+                end
+              endcase
             end
           endcase
         end
