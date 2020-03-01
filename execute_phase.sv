@@ -50,7 +50,6 @@ module execute_phase (
     .s       (de_s            ),
     .t       (de_t            ),
     .imm     (de_immediate    ),
-    .disp    (de_displacement ),
     .bit_mode(de_bit_mode     )
   );
   execute_cmp cmp_1 (

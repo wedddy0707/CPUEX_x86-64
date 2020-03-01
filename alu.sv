@@ -6,7 +6,6 @@ module alu (
   input wire [`REG_W     -1:0] s       ,
   input wire [`REG_W     -1:0] t       ,
   input wire [`IMM_W     -1:0] imm     ,
-  input wire [`DISP_W    -1:0] disp    ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
   wire [`REG_W-1:0] add_d;
@@ -46,12 +45,6 @@ module alu (
     .d        (mov_d),
     .s        (s),
     .t        (`MICRO_MOVI ? imm:t),
-    .bit_mode (bit_mode)
-  );
-  execute_lea lea_1 (
-    .d        (lea_d),
-    .s        (s),
-    .disp     (disp),
     .bit_mode (bit_mode)
   );
 endmodule
@@ -198,21 +191,5 @@ module execute_cmp (
   end
   endgenerate
 endmodule
-
-module execute_lea (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`DISP_W    -1:0] disp,
-  input wire [`BIT_MODE_W-1:0] bit_mode
-);
-  wire [ 7:0] d_08bit =  8'(s)+  8'(disp);
-  wire [15:0] d_16bit = 16'(s)+ 16'(disp);
-  wire [31:0] d_32bit = 32'(s)+ 32'(disp);
-  wire [63:0] d_64bit = 64'(s)+ 64'(disp);
-
-  assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
 
 `default_nettype wire
