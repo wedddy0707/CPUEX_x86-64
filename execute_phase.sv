@@ -61,26 +61,26 @@ module execute_phase (
   );
 
   execute_memory_access mem_1 (
-    .opcode   (de_opcode      ),
-    .d        (de_d           ),
-    .s        (de_s           ),
-    .t        (de_t           ),
-    .disp     (de_displacement),
-    .mem_addr (mem_addr       ),
-    .ld_offset(ew_ld_offset   ),
-    .st_data  (st_data        ),
-    .we       (we             )
+    .opcode   (de_opcode   ),
+    .d        (de_d        ),
+    .s        (de_s        ),
+    .t        (de_t        ),
+    .imm      (de_immediate),
+    .mem_addr (mem_addr    ),
+    .ld_offset(ew_ld_offset),
+    .st_data  (st_data     ),
+    .we       (we          )
   );
   execute_branch br_1 (
-    .opcode           (de_opcode      ),
-    .d                (de_d           ),
-    .disp             (de_displacement),
-    .pc               (de_pc          ),
-    .eflags           (gpr[`EFL_ADDR] ),
-    .rcx              (gpr[`RCX_ADDR] ),
-    .bit_mode         (de_bit_mode    ),
-    .branch_direction (exe_bd         ),
-    .branch_enable    (exe_be         )
+    .opcode           (de_opcode     ),
+    .d                (de_d          ),
+    .imm              (de_immediate  ),
+    .pc               (de_pc         ),
+    .eflags           (gpr[`EFL_ADDR]),
+    .rcx              (gpr[`RCX_ADDR]),
+    .bit_mode         (de_bit_mode   ),
+    .branch_direction (exe_bd        ),
+    .branch_enable    (exe_be        )
   );
 endmodule
 
@@ -89,7 +89,7 @@ module execute_memory_access (
   input wire [`REG_W   -1:0] d        ,
   input wire [`REG_W   -1:0] s        ,
   input wire [`REG_W   -1:0] t        ,
-  input wire [`DISP_W  -1:0] disp     ,
+  input wire [`IMM_W   -1:0] imm      ,
   output reg [`ADDR_W  -1:0] mem_addr ,
   output reg [          2:0] ld_offset,
   output reg [`REG_W   -1:0] st_data  ,
@@ -97,7 +97,7 @@ module execute_memory_access (
   input wire                 clk      ,
   input wire                 rstn
 );
-  wire [`ADDR_W:0] a = signed'({1'b0,s})+(`ADDR_W+1)'(signed'(disp));
+  wire [`ADDR_W:0] a = signed'({1'b0,s})+(`ADDR_W+1)'(signed'(imm));
 
   always @(posedge clk) begin
     st_data   <= ~rstn ? 0 : d;
@@ -113,7 +113,7 @@ endmodule
 module execute_branch (
   input wire [`OPCODE_W  -1:0] opcode          ,
   input wire [`REG_W     -1:0] d               ,
-  input wire [`DISP_W    -1:0] disp            ,
+  input wire [`IMM_W     -1:0] imm             ,
   input wire [`ADDR_W    -1:0] pc              ,
   input wire [`REG_W     -1:0] eflags          ,
   input wire [`REG_W     -1:0] rcx             ,
@@ -184,8 +184,8 @@ module execute_branch (
        parity  ,
        sign    ;
   
-  wire [`ADDR_W-1:0] type_reg =`ADDR_W'(d)                ;
-  wire [`ADDR_W-1:0] type_rel = pc+`ADDR_W'(signed'(disp));
+  wire [`ADDR_W-1:0] type_reg =`ADDR_W'(d)               ;
+  wire [`ADDR_W-1:0] type_rel = pc+`ADDR_W'(signed'(imm));
 
   condition_clarifier condition_clarifier_1 (
     .eflags  (eflags  ),
