@@ -31,7 +31,6 @@
 `define EFL_ADDR (`REG_ADDR_W'd18) // EFLAGS
 `define SCL_ADDR (`REG_ADDR_W'd19)
 `define TMP_ADDR (`REG_ADDR_W'd20)
-`define TST_ADDR (`REG_ADDR_W'd21)
 
 `define EFLAGS_CF   (`REG_W'd0)   // キャリ
 `define EFLAGS_PF   (`REG_W'd2)   // パリティ
@@ -113,7 +112,7 @@
 `define MICRO_CMP    (`MICRO_W'b0010000)
 `define MICRO_CMPI   (`MICRO_W'b0010100)
 `define MICRO_LEA    (`MICRO_W'b0011000)
-`define MICRO_SEF    (`MICRO_W'b0011100)
+`define MICRO_TEST   (`MICRO_W'b0011100)
 
 `define BIT_MODE_8   (`BIT_MODE_W'd3)
 `define BIT_MODE_16  (`BIT_MODE_W'd2)

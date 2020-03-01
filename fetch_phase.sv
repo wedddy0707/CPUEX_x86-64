@@ -172,6 +172,11 @@ module fetch_phase #(
               state                        <= S_MODRM_DEST_RM           ;
               substate_modrm_dest_rm       <= MODRM_DEST_RM_GRP_1A      ;
             end
+            8'b1111011?:// Grp3
+            begin
+              // if (?=0) 8-bit else 16/32/64-bit mode.
+
+            end
             8'hff:// Grp5
             begin
               /****************************************************
@@ -501,10 +506,26 @@ module fetch_phase #(
               state                         <= S_DISPLACEMENT;
             end
             /******************************
-            *     - TEST : Logical Compare
+            *     - Test : Logical Compare
             */
             8'b1000010?: // if (?=0) then TEST r/m8 r8 else TEST r/m16(32,64) r16(32,64)
             begin
+              name <= "TEST";
+              rex  <= rex   ;
+              mic_opcode[`MICRO_Q_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
+              mic_opcode[`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_opcode[`MICRO_Q_ARITH]<=`MICRO_TEST                                             ;
+              state                     <= S_MODRM_DEST_RM                                        ;
+            end
+            8'b1010100?: // if (?=0) then TEST AL,imm8 else TEST AX/EAX/RAX,imm16/32/32
+            begin
+              name <= "TEST";
+              rex  <= rex   ;
+              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_TESTI                                            ;
+              mic_opcode  [`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              imm_byte                    <=(~inst[0])? 1:4;
+              imm_for_whom[`MICRO_Q_ARITH]<= 1             ;
+              state                       <= S_IMMEDIATE   ;
             end
             default:begin end
           endcase
