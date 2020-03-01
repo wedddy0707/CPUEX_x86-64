@@ -72,13 +72,14 @@ module fetch_phase #(
   wire      rex_b = rex[0];
 
 
-  reg [`MICRO_Q_N -1:0] imm_for_whom  ;// どの命令が imm  を欲しているのか
-  reg [`IMM_W/8   -1:0] imm_byte      ;// byte size of following immediate
-  reg                   imm_signex    ;// immediate signed extended
-  reg [            1:0] imm_cnt       ;
-  reg [`MICRO_Q_N -1:0] disp_for_whom ;// どの命令が disp を欲しているのか
-  reg [`DISP_W/8  -1:0] disp_byte     ;// byte size of following displacement
-  reg                   disp_signex   ;// displacement signed extended
+  reg [`MICRO_Q_N -1:0] imm_for_whom ;// どの命令が imm  を欲しているのか
+  reg [`IMM_W/8   -1:0] imm_byte     ;// byte size of following immediate
+  reg                   imm_signex   ;// immediate signed extended
+  reg [            1:0] imm_cnt      ;
+  reg [`MICRO_Q_N -1:0] disp_for_whom;// どの命令が disp を欲しているのか
+  reg [`DISP_W/8  -1:0] disp_byte    ;// byte size of following displacement
+  reg                   disp_signex  ;// displacement signed extended
+  reg [            1:0] disp_cnt     ;
   
   integer i;
 
