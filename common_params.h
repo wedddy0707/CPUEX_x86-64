@@ -31,7 +31,7 @@
 `define EFL_ADDR (`REG_ADDR_W'd18) // EFLAGS
 `define SCL_ADDR (`REG_ADDR_W'd19)
 `define TMP_ADDR (`REG_ADDR_W'd20)
-`define CMP_ADDR (`REG_ADDR_W'd21)
+`define TST_ADDR (`REG_ADDR_W'd21)
 
 `define EFLAGS_CF   (`REG_W'd0)   // キャリ
 `define EFLAGS_PF   (`REG_W'd2)   // パリティ
