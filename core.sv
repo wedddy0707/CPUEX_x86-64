@@ -30,7 +30,6 @@ module core #(
   wire [`REG_ADDR_W-1:0] fet_reg_addr_s   [`MICRO_Q_N-1:0];
   wire [`REG_ADDR_W-1:0] fet_reg_addr_t   [`MICRO_Q_N-1:0];
   wire [`IMM_W     -1:0] fet_immediate    [`MICRO_Q_N-1:0];
-  wire [`DISP_W    -1:0] fet_displacement [`MICRO_Q_N-1:0];
   wire [`BIT_MODE_W-1:0] fet_bit_mode     [`MICRO_Q_N-1:0];
   wire [`ADDR_W    -1:0] fet_pc           [`MICRO_Q_N-1:0];
   wire                   fet_inst_valid                   ;
@@ -39,7 +38,6 @@ module core #(
   wire [`REG_ADDR_W-1:0] deq_reg_addr_s_head              ;
   wire [`REG_ADDR_W-1:0] deq_reg_addr_t_head              ;
   wire [`IMM_W     -1:0] deq_immediate_head               ;
-  wire [`DISP_W    -1:0] deq_displacement_head            ;
   wire [`BIT_MODE_W-1:0] deq_bit_mode_head                ;
   wire [`ADDR_W    -1:0] deq_pc_head                      ;
   wire [`MICRO_W   -1:0] de_opcode                        ;
@@ -50,7 +48,6 @@ module core #(
   wire [`REG_W     -1:0] de_s                             ;
   wire [`REG_W     -1:0] de_t                             ;
   wire [`IMM_W     -1:0] de_immediate                     ;
-  wire [`DISP_W    -1:0] de_displacement                  ;
   wire [`BIT_MODE_W-1:0] de_bit_mode                      ;
   wire [`ADDR_W    -1:0] de_pc                            ;
   wire                   forward_to_d_from_exe            ;
@@ -94,7 +91,6 @@ module core #(
     .mic_reg_addr_s   (fet_reg_addr_s   ),
     .mic_reg_addr_t   (fet_reg_addr_t   ),
     .mic_immediate    (fet_immediate    ),
-    .mic_displacement (fet_displacement ),
     .mic_bit_mode     (fet_bit_mode     ),
     .mic_inst_valid   (fet_inst_valid   ),
     .mic_pc           (fet_pc           ),
@@ -110,7 +106,6 @@ module core #(
     .fet_reg_addr_s       (fet_reg_addr_s       ),
     .fet_reg_addr_t       (fet_reg_addr_t       ),
     .fet_immediate        (fet_immediate        ),
-    .fet_displacement     (fet_displacement     ),
     .fet_bit_mode         (fet_bit_mode         ),
     .fet_inst_valid       (fet_inst_valid       ),
     .fet_pc               (fet_pc               ),
@@ -119,7 +114,6 @@ module core #(
     .deq_reg_addr_s_head  (deq_reg_addr_s_head  ),
     .deq_reg_addr_t_head  (deq_reg_addr_t_head  ),
     .deq_immediate_head   (deq_immediate_head   ),
-    .deq_displacement_head(deq_displacement_head),
     .deq_bit_mode_head    (deq_bit_mode_head    ),
     .deq_pc_head          (deq_pc_head          ),
     .stall                (stall_phase          ),
@@ -137,7 +131,6 @@ module core #(
     .deq_reg_addr_s_head  (deq_reg_addr_s_head  ),
     .deq_reg_addr_t_head  (deq_reg_addr_t_head  ),
     .deq_immediate_head   (deq_immediate_head   ),
-    .deq_displacement_head(deq_displacement_head),
     .deq_bit_mode_head    (deq_bit_mode_head    ),
     .deq_pc_head          (deq_pc_head          ),
     .de_opcode            (de_opcode            ),
@@ -148,7 +141,6 @@ module core #(
     .de_s                 (de_s                 ),
     .de_t                 (de_t                 ),
     .de_immediate         (de_immediate         ),
-    .de_displacement      (de_displacement      ),
     .de_bit_mode          (de_bit_mode          ),
     .de_pc                (de_pc                ),
     .gpr                  (gpr                  ),
@@ -173,7 +165,6 @@ module core #(
     .de_s             (de_s             ),
     .de_t             (de_t             ),
     .de_immediate     (de_immediate     ),
-    .de_displacement  (de_displacement  ),
     .de_bit_mode      (de_bit_mode      ),
     .de_pc            (de_pc            ),
     .gpr              (gpr              ),

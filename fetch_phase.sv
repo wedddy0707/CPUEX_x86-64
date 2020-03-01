@@ -11,7 +11,6 @@ module fetch_phase #(
   output reg [`REG_ADDR_W-1:0] mic_reg_addr_s   [`MICRO_Q_N-1:0],
   output reg [`REG_ADDR_W-1:0] mic_reg_addr_t   [`MICRO_Q_N-1:0],
   output reg [`IMM_W     -1:0] mic_immediate    [`MICRO_Q_N-1:0],
-  output reg [`DISP_W    -1:0] mic_displacement [`MICRO_Q_N-1:0],
   output reg [`BIT_MODE_W-1:0] mic_bit_mode     [`MICRO_Q_N-1:0],
   output reg [`ADDR_W    -1:0] mic_pc           [`MICRO_Q_N-1:0],
   output reg                   mic_inst_valid                   ,
@@ -108,7 +107,6 @@ module fetch_phase #(
           for (i=0;i<`MICRO_Q_N;i=i+1) begin
             mic_opcode      [i] <=`MICRO_NOP  ;
             mic_immediate   [i] <= 0          ;
-            //mic_displacement[i] <= 0          ;
             mic_bit_mode    [i] <=`BIT_MODE_32;
             mic_reg_addr_d  [i] <= signed'(-1);
             mic_reg_addr_s  [i] <= signed'(-1);
@@ -870,37 +868,29 @@ module fetch_phase #(
               case (disp_cnt)
                 2'd0: begin
                   if (disp_signex) begin
-                    //mic_displacement[i][`DISP_W-1: 0]<=`DISP_W'(signed'(inst));
                     mic_immediate[i][`DISP_W-1: 0]<=`DISP_W'(signed'(inst));
                   end else begin
-                    //mic_displacement[i][`DISP_W-1: 0]<=`DISP_W'(inst);
                     mic_immediate[i][`DISP_W-1: 0]<=`DISP_W'(inst);
                   end
                 end
                 2'd1: begin
                   if (disp_signex) begin
-                    //mic_displacement[i][`DISP_W-1: 8]<=(`DISP_W-8)'(signed'(inst));
                     mic_immediate[i][`DISP_W-1: 8]<=(`DISP_W-8)'(signed'(inst));
                   end else begin
-                    //mic_displacement[i][`DISP_W-1: 8]<=(`DISP_W-8)'(inst);
                     mic_immediate[i][`DISP_W-1: 8]<=(`DISP_W-8)'(inst);
                   end
                 end
                 2'd2: begin
                   if (disp_signex) begin
-                    //mic_displacement[i][`DISP_W-1:16]<=(`DISP_W-16)'(signed'(inst));
                     mic_immediate[i][`DISP_W-1:16]<=(`DISP_W-16)'(signed'(inst));
                   end else begin
-                    //mic_displacement[i][`DISP_W-1:16]<=(`DISP_W-16)'(inst);
                     mic_immediate[i][`DISP_W-1:16]<=(`DISP_W-16)'(inst);
                   end
                 end
                 default: begin
                   if (disp_signex) begin
-                    //mic_displacement[i][`DISP_W-1:24]<=(`DISP_W-24)'(signed'(inst));
                     mic_immediate[i][`DISP_W-1:24]<=(`DISP_W-24)'(signed'(inst));
                   end else begin
-                    //mic_displacement[i][`DISP_W-1:24]<=(`DISP_W-24)'(inst);
                     mic_immediate[i][`DISP_W-1:24]<=(`DISP_W-24)'(inst);
                   end
                 end

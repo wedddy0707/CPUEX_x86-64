@@ -9,7 +9,6 @@ module decode_phase #(
   input wire [`REG_ADDR_W-1:0] deq_reg_addr_s_head  ,
   input wire [`REG_ADDR_W-1:0] deq_reg_addr_t_head  ,
   input wire [`IMM_W     -1:0] deq_immediate_head   ,
-  input wire [`DISP_W    -1:0] deq_displacement_head,
   input wire [`BIT_MODE_W-1:0] deq_bit_mode_head    ,
   input wire [`ADDR_W    -1:0] deq_pc_head          ,
   output reg [`MICRO_W   -1:0] de_opcode            ,
@@ -20,7 +19,6 @@ module decode_phase #(
   output reg [`REG_W     -1:0] de_s                 ,
   output reg [`REG_W     -1:0] de_t                 ,
   output reg [`IMM_W     -1:0] de_immediate         ,
-  output reg [`DISP_W    -1:0] de_displacement      ,
   output reg [`BIT_MODE_W-1:0] de_bit_mode          ,
   output reg [`ADDR_W    -1:0] de_pc                ,
   input wire [`REG_W     -1:0] gpr [`REG_N-1:0]     ,
@@ -66,7 +64,6 @@ module decode_phase #(
     de_reg_addr_s  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_s_head  ;
     de_reg_addr_t  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_t_head  ;
     de_immediate   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_immediate_head   ;
-    de_displacement<=~rstn ? 0:flush ? 0:stall ? 0 :deq_displacement_head;
     de_bit_mode    <=~rstn ? 0:flush ? 0:stall ? 0 :deq_bit_mode_head    ;
     de_pc          <=~rstn ? 0:flush ? 0:stall ? 0 :deq_pc_head          ;
     de_d           <=~rstn ? 0:flush ? 0:stall ? 0 :dec_d                ;
