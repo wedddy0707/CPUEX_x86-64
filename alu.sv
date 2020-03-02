@@ -35,43 +35,43 @@ module alu (
   execute_add add_1 (
     .d        (add_d),
     .s        (s),
-    .t        (`MICRO_ADDI ? imm:t),
+    .t        (opcode==`MICRO_ADDI ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_aub sub_1 (
     .d        (sub_d),
     .s        (s),
-    .t        (`MICRO_SUBI ? imm:t),
+    .t        (opcode==`MICRO_SUBI ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_sll sll_1 (
     .d        (sll_d),
     .s        (s),
-    .t        (`MICRO_SLLI ? imm:t),
+    .t        (opcode==`MICRO_SLLI ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_and and_1 (
     .d        (and_d),
     .s        (s),
-    .t        (`MICRO_ANDI ? imm:t),
+    .t        (opcode==`MICRO_ANDI ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_or or_1 (
     .d        (or_d),
     .s        (s),
-    .t        (`MICRO_ORI  ? imm:t),
+    .t        (opcode==`MICRO_ORI  ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_xor xor_1 (
     .d        (xor_d),
     .s        (s),
-    .t        (`MICRO_XORI ? imm:t),
+    .t        (opcode==`MICRO_XORI ? imm:t),
     .bit_mode (bit_mode)
   );
   execute_mov mov_1 (
     .d        (mov_d),
     .s        (s),
-    .t        (`MICRO_MOVI ? imm:t),
+    .t        (opcode==`MICRO_MOVI ? imm:t),
     .bit_mode (bit_mode)
   );
 endmodule
@@ -219,38 +219,5 @@ module execute_mov (
     (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
 endmodule
 
-module execute_cmp (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
-  input wire [`BIT_MODE_W-1:0] bit_mode
-);
-  wire        carry;
-  wire        overflow;
-  wire [63:0] sub_d;
-
-  execute_sub sub_1 (
-    .d        (sub_d),
-    .carry    (carry),
-    .overflow (overflow),
-    .s        (s),
-    .t        (t),
-    .bit_mode (bit_mode)
-  );
-
-  genvar i;
-  generate
-  begin
-    for (i=0;i<`REG_W;i=i+1) begin: set_flag
-      assign d[i] =
-        (i==`EFLAGS_CF) ? carry            :
-        (i==`EFLAGS_OF) ? overflow         :
-        (i==`EFLAGS_PF) ? ~(^sub_d)        :
-        (i==`EFLAGS_ZF) ? ~(|sub_d)        :
-        (i==`EFLAGS_SF) ? signed'(sub_d)<0 : 0;
-    end
-  end
-  endgenerate
-endmodule
 
 `default_nettype wire

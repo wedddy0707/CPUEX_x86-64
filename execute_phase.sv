@@ -52,12 +52,6 @@ module execute_phase (
     .imm     (de_immediate    ),
     .bit_mode(de_bit_mode     )
   );
-  execute_cmp cmp_1 (
-    .d        (cmp_d),
-    .s        (de_s),
-    .t        (`MICRO_CMPI ? de_immediate:de_t),
-    .bit_mode (de_bit_mode)
-  );
 
   execute_memory_access mem_1 (
     .opcode   (de_opcode   ),
