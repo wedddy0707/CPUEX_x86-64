@@ -10,18 +10,22 @@ module alu (
   output reg [`REG_W     -1:0] eflags       ,
   input wire [`REG_W     -1:0] eflags_as_src
 );
-  wire [`REG_W-1:0] add_d     ;
-  wire [`REG_W-1:0] sll_d     ;
-  wire [`REG_W-1:0] and_d     ;
-  wire [`REG_W-1:0]  or_d     ;
-  wire [`REG_W-1:0] xor_d     ;
-  wire [`REG_W-1:0] mov_d     ;
-  wire [`REG_W-1:0] add_eflags;
-  wire [`REG_W-1:0] sll_eflags;
-  wire [`REG_W-1:0] and_eflags;
-  wire [`REG_W-1:0]  or_eflags;
-  wire [`REG_W-1:0] xor_eflags;
-  wire [`REG_W-1:0] mov_eflags;
+  wire [`REG_W-1:0] add_d      ;
+  wire [`REG_W-1:0] sll_d      ;
+  wire [`REG_W-1:0] and_d      ;
+  wire [`REG_W-1:0]  or_d      ;
+  wire [`REG_W-1:0] xor_d      ;
+  wire [`REG_W-1:0] mov_d      ;
+  wire [`REG_W-1:0] cmp_d      ;
+  wire [`REG_W-1:0] test_d     ;
+  wire [`REG_W-1:0] add_eflags ;
+  wire [`REG_W-1:0] sll_eflags ;
+  wire [`REG_W-1:0] and_eflags ;
+  wire [`REG_W-1:0]  or_eflags ;
+  wire [`REG_W-1:0] xor_eflags ;
+  wire [`REG_W-1:0] mov_eflags ;
+  wire [`REG_W-1:0] cmp_eflags ;
+  wire [`REG_W-1:0] test_eflags;
 
   assign {d,eflags} =
     (opcode==`MICRO_ADD ) ? {add_d,add_eflags}:
@@ -46,7 +50,7 @@ module alu (
     .eflags       (add_eflags                 )
     .eflags_as_src(eflags_as_src              ),
   );
-  execute_aub sub_1 (
+  execute_sub sub_1 (
     .d            (sub_d                      ),
     .s            (s                          ),
     .t            (opcode==`MICRO_SUBI ? imm:t),
@@ -92,6 +96,22 @@ module alu (
     .t            (opcode==`MICRO_MOVI ? imm:t),
     .bit_mode     (bit_mode                   ),
     .eflags       (mov_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
+  );
+  execute_cmp cmp_1 (
+    .d            (cmp_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_CMPI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (cmp_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
+  );
+  execute_test test_1 (
+    .d            (test_d                     ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_TESTI ?imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (test_eflags                ),
     .eflags_as_src(eflags_as_src              )
   );
 endmodule
@@ -364,5 +384,44 @@ module execute_sll (
   endgenerate
 endmodule
 
+module execute_cmp (
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
+  input wire [`BIT_MODE_W-1:0] bit_mode
+);
+  assign d = `REG_W'd0;
+
+  // dは必要ないので受け取らない（よしなに最適化されるといいな）
+  execute_sub pseudo_sub_1 (
+    .eflags       (eflags       ),
+    .eflags_as_src(eflags_as_src),
+    .s            (s            ),
+    .t            (t            ),
+    .bit_mode     (bit_mode     )
+  );
+endmodule
+
+module execute_test (
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
+  input wire [`BIT_MODE_W-1:0] bit_mode
+);
+  assign d = `REG_W'd0;
+
+  // dは必要ないので受け取らない（よしなに最適化されるといいな）
+  execute_and pseudo_and_1 (
+    .eflags       (eflags       ),
+    .eflags_as_src(eflags_as_src),
+    .s            (s            ),
+    .t            (t            ),
+    .bit_mode     (bit_mode     )
+  );
+endmodule
 
 `default_nettype wire
