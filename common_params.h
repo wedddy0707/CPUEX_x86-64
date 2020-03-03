@@ -68,6 +68,8 @@
 `define MICRO_SLL    (`MICRO_W'b0111011)
 `define MICRO_SRL    (`MICRO_W'b1000011)
 `define MICRO_SRA    (`MICRO_W'b1001011)
+`define MICRO_ADC    (`MICRO_W'b1010011)
+`define MICRO_SBB    (`MICRO_W'b1011011)
 `define MICRO_ADDI   (`MICRO_W'b0000111)
 `define MICRO_SUBI   (`MICRO_W'b0001111)
 `define MICRO_MULI   (`MICRO_W'b0010111)
@@ -111,7 +113,7 @@
 `define MICRO_MOVI   (`MICRO_W'b0001100)
 `define MICRO_CMP    (`MICRO_W'b0010000)
 `define MICRO_CMPI   (`MICRO_W'b0010100)
-`define MICRO_LEA    (`MICRO_W'b0011000)
+`define MICRO_LEA    (`MICRO_W'b0011000) // 必要なくなった.後で消す
 `define MICRO_TEST   (`MICRO_W'b0011100)
 `define MICRO_TESTI  (`MICRO_W'b0011100)
 
