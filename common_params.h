@@ -80,6 +80,8 @@
 `define MICRO_SLLI   (`MICRO_W'b0111111)
 `define MICRO_SRLI   (`MICRO_W'b1000111)
 `define MICRO_SRAI   (`MICRO_W'b1001111)
+`define MICRO_ADCI   (`MICRO_W'b1010111)
+`define MICRO_SBBI   (`MICRO_W'b1011111)
 `define MICRO_LB     (`MICRO_W'b0001001)
 `define MICRO_LW     (`MICRO_W'b0010001)
 `define MICRO_LD     (`MICRO_W'b0100001)
