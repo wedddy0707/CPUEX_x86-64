@@ -448,6 +448,25 @@ module execute_sll (
   endgenerate
 endmodule
 
+module execute_mov (
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
+  input wire [`BIT_MODE_W-1:0] bit_mode
+);
+  wire [`REG_W:0] d_with_bits_maximum = (`REG_W+1)'(t);
+
+  assign d =
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
+
+  assign eflags = eflags_as_src;
+endmodule
+
 module execute_cmp (
   output reg [`REG_W     -1:0] d            ,
   output reg [`REG_W     -1:0] eflags       ,
