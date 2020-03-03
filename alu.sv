@@ -1,4 +1,5 @@
 `default_nettype none
+`include "common_param.h"
 
 module alu (
   output reg [`REG_W     -1:0] d            ,
