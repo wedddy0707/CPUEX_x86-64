@@ -26,11 +26,10 @@
 `define RBP_ADDR (`REG_ADDR_W'd5)
 `define RSI_ADDR (`REG_ADDR_W'd6)
 `define RDI_ADDR (`REG_ADDR_W'd7)
-`define ZER_ADDR (`REG_ADDR_W'd16) // ゼロレジスタ
-`define RIP_ADDR (`REG_ADDR_W'd17) // 命令ポインタレジスタ
-`define EFL_ADDR (`REG_ADDR_W'd18) // EFLAGS
-`define SCL_ADDR (`REG_ADDR_W'd19)
-`define TMP_ADDR (`REG_ADDR_W'd20)
+`define RIP_ADDR (`REG_ADDR_W'd16) // 命令ポインタレジスタ
+`define EFL_ADDR (`REG_ADDR_W'd17) // EFLAGS
+`define SCL_ADDR (`REG_ADDR_W'd18)
+`define TMP_ADDR (`REG_ADDR_W'd19)
 
 `define EFLAGS_CF   (`REG_W'd0)   // キャリ
 `define EFLAGS_PF   (`REG_W'd2)   // パリティ
