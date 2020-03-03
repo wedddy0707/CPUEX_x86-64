@@ -12,6 +12,7 @@ module alu (
   input wire [`REG_W     -1:0] eflags_as_src
 );
   wire [`REG_W-1:0] add_d      ;
+  wire [`REG_W-1:0] sub_d      ;
   wire [`REG_W-1:0] sll_d      ;
   wire [`REG_W-1:0] and_d      ;
   wire [`REG_W-1:0]  or_d      ;
@@ -22,6 +23,7 @@ module alu (
   wire [`REG_W-1:0] adc_d      ;
   wire [`REG_W-1:0] sbb_d      ;
   wire [`REG_W-1:0] add_eflags ;
+  wire [`REG_W-1:0] sub_eflags ;
   wire [`REG_W-1:0] sll_eflags ;
   wire [`REG_W-1:0] and_eflags ;
   wire [`REG_W-1:0]  or_eflags ;
