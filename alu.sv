@@ -1,222 +1,367 @@
 `default_nettype none
 
 module alu (
-  output reg [`REG_W     -1:0] d       ,
-  input wire [`OPCODE_W  -1:0] opcode  ,
-  input wire [`REG_W     -1:0] s       ,
-  input wire [`REG_W     -1:0] t       ,
-  input wire [`IMM_W     -1:0] imm     ,
-  input wire [`BIT_MODE_W-1:0] bit_mode
+  output reg [`REG_W     -1:0] d            ,
+  input wire [`OPCODE_W  -1:0] opcode       ,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
+  input wire [`IMM_W     -1:0] imm          ,
+  input wire [`BIT_MODE_W-1:0] bit_mode     ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src
 );
-  wire [`REG_W-1:0] add_d;
-  wire [`REG_W-1:0] sll_d;
-  wire [`REG_W-1:0] and_d;
-  wire [`REG_W-1:0]  or_d;
-  wire [`REG_W-1:0] xor_d;
-  wire [`REG_W-1:0] mov_d;
-  wire [`REG_W-1:0] lea_d;
-  
-  assign d =
-    (opcode==`MICRO_ADD ) ? add_d :
-    (opcode==`MICRO_ADDI) ? add_d :
-    (opcode==`MICRO_SUB ) ? sub_d :
-    (opcode==`MICRO_SUBI) ? sub_d :
-    (opcode==`MICRO_SLLI) ? sll_d :
-    (opcode==`MICRO_AND ) ? and_d :
-    (opcode==`MICRO_ANDI) ? and_d :
-    (opcode==`MICRO_OR  ) ?  or_d :
-    (opcode==`MICRO_ORI ) ?  or_d :
-    (opcode==`MICRO_XOR ) ? xor_d :
-    (opcode==`MICRO_XORI) ? xor_d :
-    (opcode==`MICRO_MOV ) ? mov_d :
-    (opcode==`MICRO_MOVI) ? mov_d :
-    (opcode==`MICRO_LEA ) ? lea_d : 0;
+  wire [`REG_W-1:0] add_d     ;
+  wire [`REG_W-1:0] sll_d     ;
+  wire [`REG_W-1:0] and_d     ;
+  wire [`REG_W-1:0]  or_d     ;
+  wire [`REG_W-1:0] xor_d     ;
+  wire [`REG_W-1:0] mov_d     ;
+  wire [`REG_W-1:0] add_eflags;
+  wire [`REG_W-1:0] sll_eflags;
+  wire [`REG_W-1:0] and_eflags;
+  wire [`REG_W-1:0]  or_eflags;
+  wire [`REG_W-1:0] xor_eflags;
+  wire [`REG_W-1:0] mov_eflags;
+
+  assign {d,eflags} =
+    (opcode==`MICRO_ADD ) ? {add_d,add_eflags}:
+    (opcode==`MICRO_ADDI) ? {add_d,add_eflags}:
+    (opcode==`MICRO_SUB ) ? {sub_d,sub_eflags}:
+    (opcode==`MICRO_SUBI) ? {sub_d,sub_eflags}:
+    (opcode==`MICRO_SLLI) ? {sll_d,sll_eflags}:
+    (opcode==`MICRO_AND ) ? {and_d,and_eflags}:
+    (opcode==`MICRO_ANDI) ? {and_d,and_eflags}:
+    (opcode==`MICRO_OR  ) ? { or_d, or_eflags}:
+    (opcode==`MICRO_ORI ) ? { or_d, or_eflags}:
+    (opcode==`MICRO_XOR ) ? {xor_d,xor_eflags}:
+    (opcode==`MICRO_XORI) ? {xor_d,xor_eflags}:
+    (opcode==`MICRO_MOV ) ? {mov_d,mov_eflags}:
+    (opcode==`MICRO_MOVI) ? {mov_d,mov_eflags}: 0;
   
   execute_add add_1 (
-    .d        (add_d),
-    .s        (s),
-    .t        (opcode==`MICRO_ADDI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (add_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_ADDI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (add_eflags                 )
+    .eflags_as_src(eflags_as_src              ),
   );
   execute_aub sub_1 (
-    .d        (sub_d),
-    .s        (s),
-    .t        (opcode==`MICRO_SUBI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (sub_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_SUBI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (sub_eflags                 )
+    .eflags_as_src(eflags_as_src              ),
   );
   execute_sll sll_1 (
-    .d        (sll_d),
-    .s        (s),
-    .t        (opcode==`MICRO_SLLI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (sll_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_SLLI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (sll_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
   );
   execute_and and_1 (
-    .d        (and_d),
-    .s        (s),
-    .t        (opcode==`MICRO_ANDI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (and_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_ANDI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (and_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
   );
   execute_or or_1 (
-    .d        (or_d),
-    .s        (s),
-    .t        (opcode==`MICRO_ORI  ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (or_d                       ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_ORI  ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (or_eflags                  ),
+    .eflags_as_src(eflags_as_src              )
   );
   execute_xor xor_1 (
-    .d        (xor_d),
-    .s        (s),
-    .t        (opcode==`MICRO_XORI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (xor_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_XORI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (xor_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
   );
   execute_mov mov_1 (
-    .d        (mov_d),
-    .s        (s),
-    .t        (opcode==`MICRO_MOVI ? imm:t),
-    .bit_mode (bit_mode)
+    .d            (mov_d                      ),
+    .s            (s                          ),
+    .t            (opcode==`MICRO_MOVI ? imm:t),
+    .bit_mode     (bit_mode                   ),
+    .eflags       (mov_eflags                 ),
+    .eflags_as_src(eflags_as_src              )
   );
 endmodule
 
+/*************************************
+* Operation
+*   DEST ← DEST + SRC;
+* Flags Affected
+*   OF, SF, ZF, AF, CF, and PF flags.
+*
+*/
 module execute_add (
-  output reg [`REG_W     -1:0] d,
-  output reg                   carry,
-  output reg                   overflow,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
-  wire [ 7:0] d_08bit;
-  wire [15:0] d_16bit;
-  wire [31:0] d_32bit;
-  wire [63:0] d_64bit;
-  wire        c_08bit;
-  wire        c_16bit;
-  wire        c_32bit;
-  wire        c_64bit;
 
-  assign {c_08bit,d_08bit} =  9'(signed'(s))+ 9'(signed'(t));
-  assign {c_16bit,d_16bit} = 17'(signed'(s))+17'(signed'(t));
-  assign {c_32bit,d_32bit} = 33'(signed'(s))+33'(signed'(t));
-  assign {c_64bit,d_64bit} = 65'(signed'(s))+65'(signed'(t));
+  wire [`REG_W:0] d_with_bits_maximum =
+    (`REG_W+1)'(signed'(s))+(`REG_W+1)'(signed'(t));
 
-  assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(signed'(d_08bit)) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(signed'(d_16bit)) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(signed'(d_32bit)) : `REG_W'(d_64bit);
-
-  assign carry =
-    (bit_mode==`BIT_MODE_8 ) ? c_08bit :
-    (bit_mode==`BIT_MODE_16) ? c_16bit :
-    (bit_mode==`BIT_MODE_32) ? c_32bit : c_64bit ;
-
-  // 負=正+正 or 正=負+負
-  assign overflow =
-    (bit_mode==`BIT_MODE_8 ) ? (d[ 7]&(~s[ 7])&(~t[ 7]))|((~d[ 7])&s[ 7]&t[ 7]) :
-    (bit_mode==`BIT_MODE_16) ? (d[15]&(~s[15])&(~t[15]))|((~d[15])&s[15]&t[15]) :
-    (bit_mode==`BIT_MODE_32) ? (d[31]&(~s[31])&(~t[31]))|((~d[31])&s[31]&t[31]) :
-                               (d[63]&(~s[63])&(~t[63]))|((~d[63])&s[63]&t[63]) ;
+  wire overflow =
+    (bit_mode==`BIT_MODE_8 ) ? (d[ 7]&(~s[ 7])&(~t[ 7]))|((~d[ 7])&s[ 7]&t[ 7]):
+    (bit_mode==`BIT_MODE_16) ? (d[15]&(~s[15])&(~t[15]))|((~d[15])&s[15]&t[15]):
+    (bit_mode==`BIT_MODE_32) ? (d[31]&(~s[31])&(~t[31]))|((~d[31])&s[31]&t[31]):
+                               (d[63]&(~s[63])&(~t[63]))|((~d[63])&s[63]&t[63]);
+  wire msb =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31]:
+                               d_with_bits_maximum[63];
+  wire zero =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7:0]== 8'd0:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15:0]==16'd0:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31:0]==32'd0:
+                               d_with_bits_maximum[63:0]==64'd0;
+  wire carry =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 8]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[16]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[32]:
+                               d_with_bits_maximum[64];
+  wire parity =
+    (bit_mode==`BIT_MODE_8 ) ? ~(^d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? ~(^d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? ~(^d_with_bits_maximum[31:0]):
+                               ~(^d_with_bits_maximum[63:0]);
+  genvar i;
+  generate
+  begin
+    for (i=0;i<`REG_W;i=i+1) begin: set_eflags
+      assign eflags[i] =
+        (i==`EFLAGS_OF) ? overflow:
+        (i==`EFLAGS_SF) ? msb     :
+        (i==`EFLAGS_ZF) ? zero    :
+        (i==`EFLAGS_AF) ? 0       :
+        (i==`EFLAGS_CF) ? carry   :
+        (i==`EFLAGS_PF) ? parity  : eflags_as_src[i];
+    end
+  end
+  endgenerate
 endmodule
 
 module execute_sub (
-  output reg [`REG_W     -1:0] d,
-  output reg                   carry,
-  output reg                   overflow,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
+  wire [`REG_W-1:0] neg_t = (~t)+1;
+
   execute_add add_1 (
-    .d        (d),
-    .carry    (carry),
-    .overflow (overflow),
-    .s        (s),
-    .t        (~t+1),
-    .bit_mode (bit_mode)
+    .d            (d            ),
+    .eflags       (eflags       ),
+    .eflags_as_src(eflags_as_src),
+    .s            (s            ),
+    .t            (neg_t        ),
+    .bit_mode     (bit_mode     )
   );
 endmodule
 
 module execute_and (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
-  wire [ 7:0] d_08bit =  8'(s) &  8'(t);
-  wire [15:0] d_16bit = 16'(s) & 16'(t);
-  wire [31:0] d_32bit = 32'(s) & 32'(t);
-  wire [63:0] d_64bit = 64'(s) & 64'(t);
+  wire [`REG_W:0] d_with_bits_maximum =
+    (`REG_W+1)'(s)&(`REG_W+1)'(t);
 
   assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
+  wire msb =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31]:
+                               d_with_bits_maximum[63];
+  wire zero =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7:0]== 8'd0:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15:0]==16'd0:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31:0]==32'd0:
+                               d_with_bits_maximum[63:0]==64'd0;
+  wire parity =
+    (bit_mode==`BIT_MODE_8 ) ? ~(^d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? ~(^d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? ~(^d_with_bits_maximum[31:0]):
+                               ~(^d_with_bits_maximum[63:0]);
+  genvar i;
+  generate
+  begin
+    for (i=0;i<`REG_W;i=i+1) begin: set_eflags
+      assign eflags[i] =
+        (i==`EFLAGS_OF) ? 0     :
+        (i==`EFLAGS_SF) ? msb   :
+        (i==`EFLAGS_ZF) ? zero  :
+        (i==`EFLAGS_AF) ? 0     :
+        (i==`EFLAGS_CF) ? 0     :
+        (i==`EFLAGS_PF) ? parity: eflags_as_src[i];
+    end
+  end
+  endgenerate
 endmodule
 
 module execute_or (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
-  wire [ 7:0] d_08bit =  8'(s) |  8'(t);
-  wire [15:0] d_16bit = 16'(s) | 16'(t);
-  wire [31:0] d_32bit = 32'(s) | 32'(t);
-  wire [63:0] d_64bit = 64'(s) | 64'(t);
+  wire [`REG_W:0] d_with_bits_maximum =
+    (`REG_W+1)'(s)|(`REG_W+1)'(t);
 
   assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
+  wire msb =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31]:
+                               d_with_bits_maximum[63];
+  wire zero =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7:0]== 8'd0:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15:0]==16'd0:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31:0]==32'd0:
+                               d_with_bits_maximum[63:0]==64'd0;
+  wire parity =
+    (bit_mode==`BIT_MODE_8 ) ? ~(^d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? ~(^d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? ~(^d_with_bits_maximum[31:0]):
+                               ~(^d_with_bits_maximum[63:0]);
+  genvar i;
+  generate
+  begin
+    for (i=0;i<`REG_W;i=i+1) begin: set_eflags
+      assign eflags[i] =
+        (i==`EFLAGS_OF) ? 0     :
+        (i==`EFLAGS_SF) ? msb   :
+        (i==`EFLAGS_ZF) ? zero  :
+        (i==`EFLAGS_AF) ? 0     :
+        (i==`EFLAGS_CF) ? 0     :
+        (i==`EFLAGS_PF) ? parity: eflags_as_src[i];
+    end
+  end
+  endgenerate
 endmodule
 
 module execute_xor (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
-  wire [ 7:0] d_08bit =  8'(s) ^  8'(t);
-  wire [15:0] d_16bit = 16'(s) ^ 16'(t);
-  wire [31:0] d_32bit = 32'(s) ^ 32'(t);
-  wire [63:0] d_64bit = 64'(s) ^ 64'(t);
+  wire [`REG_W:0] d_with_bits_maximum =
+    (`REG_W+1)'(s)^(`REG_W+1)'(t);
 
   assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
+  wire msb =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31]:
+                               d_with_bits_maximum[63];
+  wire zero =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7:0]== 8'd0:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15:0]==16'd0:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31:0]==32'd0:
+                               d_with_bits_maximum[63:0]==64'd0;
+  wire parity =
+    (bit_mode==`BIT_MODE_8 ) ? ~(^d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? ~(^d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? ~(^d_with_bits_maximum[31:0]):
+                               ~(^d_with_bits_maximum[63:0]);
+  genvar i;
+  generate
+  begin
+    for (i=0;i<`REG_W;i=i+1) begin: set_eflags
+      assign eflags[i] =
+        (i==`EFLAGS_OF) ? 0     :
+        (i==`EFLAGS_SF) ? msb   :
+        (i==`EFLAGS_ZF) ? zero  :
+        (i==`EFLAGS_AF) ? 0     :
+        (i==`EFLAGS_CF) ? 0     :
+        (i==`EFLAGS_PF) ? parity: eflags_as_src[i];
+    end
+  end
+  endgenerate
 endmodule
 
 module execute_sll (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
+  output reg [`REG_W     -1:0] d            ,
+  output reg [`REG_W     -1:0] eflags       ,
+  input wire [`REG_W     -1:0] eflags_as_src,
+  input wire [`REG_W     -1:0] s            ,
+  input wire [`REG_W     -1:0] t            ,
   input wire [`BIT_MODE_W-1:0] bit_mode
 );
-  wire [ 7:0] d_08bit =  8'(s) <<  8'(t);
-  wire [15:0] d_16bit = 16'(s) << 16'(t);
-  wire [31:0] d_32bit = 32'(s) << 32'(t);
-  wire [63:0] d_64bit = 64'(s) << 64'(t);
+  wire [`REG_W:0] d_with_bits_maximum =
+    (`REG_W+1)'(s)<<(`REG_W+1)'(t);
 
   assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
-endmodule
-
-module execute_mov (
-  output reg [`REG_W     -1:0] d,
-  input wire [`REG_W     -1:0] s,
-  input wire [`REG_W     -1:0] t,
-  input wire [`BIT_MODE_W-1:0] bit_mode
-);
-  wire [ 7:0] d_08bit =  8'(t);
-  wire [15:0] d_16bit = 16'(t);
-  wire [31:0] d_32bit = 32'(t);
-  wire [63:0] d_64bit = 64'(t);
-
-  assign d =
-    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_08bit) :
-    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_16bit) :
-    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_32bit) : `REG_W'(d_64bit);
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
+  wire msb =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7]:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15]:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31]:
+                               d_with_bits_maximum[63];
+  wire zero =
+    (bit_mode==`BIT_MODE_8 ) ? d_with_bits_maximum[ 7:0]== 8'd0:
+    (bit_mode==`BIT_MODE_16) ? d_with_bits_maximum[15:0]==16'd0:
+    (bit_mode==`BIT_MODE_32) ? d_with_bits_maximum[31:0]==32'd0:
+                               d_with_bits_maximum[63:0]==64'd0;
+  wire parity =
+    (bit_mode==`BIT_MODE_8 ) ? ~(^d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? ~(^d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? ~(^d_with_bits_maximum[31:0]):
+                               ~(^d_with_bits_maximum[63:0]);
+  genvar i;
+  generate
+  begin
+    for (i=0;i<`REG_W;i=i+1) begin: set_eflags
+      assign eflags[i] =
+        (i==`EFLAGS_OF) ? 0     :
+        (i==`EFLAGS_SF) ? msb   :
+        (i==`EFLAGS_ZF) ? zero  :
+        (i==`EFLAGS_AF) ? 0     :
+        (i==`EFLAGS_CF) ? 0     :
+        (i==`EFLAGS_PF) ? parity: eflags_as_src[i];
+    end
+  end
+  endgenerate
 endmodule
 
 
