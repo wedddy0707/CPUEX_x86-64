@@ -6,7 +6,7 @@ if [ $# -ne 2 ]; then
 fi
 
 cd `dirname $1`
-gcc -O0 -c `basename $1`
+gcc -c `basename $1`
 cd -
 mv ${1%%.c}.o ./
 ld pick_up_text.ld `basename ${1%%.c}.o`
@@ -17,7 +17,8 @@ echo ""
 echo ""
 echo ""
 echo "GENERATED INSTRUCTION SEQUENCE:"
-objdump -d `basename ${1%%.c}.o`
+#objdump -d `basename ${1%%.c}.o`
+objdump -d a.out
 
 echo ""
 echo ""

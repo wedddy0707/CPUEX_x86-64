@@ -2,12 +2,15 @@
 `include "common_params.h"
 
 module write_back_phase #(
-  parameter LOAD_LATENCY = 1,
-  parameter EW_LAYER     = 1
+  parameter LOAD_LATENCY =    1,
+  parameter EW_LAYER     =    1,
+  parameter INIT_RIP     =    0,
+  parameter INIT_RSP     = 1024
 ) (
   input wire [`OPCODE_W  -1:0] de_opcode                        ,
   input wire [`ADDR_W    -1:0] exe_bd                           ,
   input wire                   exe_be                           ,
+  input wire                   exe_eflags_update                ,
   input wire [`REG_W     -1:0] exe_eflags                       ,
   input wire [`OPCODE_W  -1:0] ew_opcode                        ,
   input wire [`REG_ADDR_W-1:0] ew_reg_addr_d                    ,
@@ -73,22 +76,18 @@ module write_back_phase #(
   always @(posedge clk) begin
     if (~rstn) begin
       for (i=0;i<`REG_N;i=i+1) begin
-        if (i==`RIP_ADDR) begin
-          gpr[i] <= signed'(-1);
-        end else if (i==`RSP_ADDR) begin
-          gpr[i] <= signed'(-2);
-        end else begin
-          gpr[i] <= 0;
-        end
+        gpr[i]<=(i==`RIP_ADDR) ? `ADDR_W'(signed'(INIT_RIP))-`ADDR_W'(signed'(LOAD_LATENCY)):
+                (i==`RSP_ADDR) ? `ADDR_W'(INIT_RSP)                                         : 0;
       end
     end else begin
       if (d_to_gpr) begin
         gpr[ew_layer_reg_addr_d[EW_LAYER-1]] <= ew_layer_d[EW_LAYER-1];
       end
+      if (exe_eflags_update) begin
+        gpr[`EFL_ADDR] <= exe_eflags;
+      end
       gpr[`RIP_ADDR] <= exe_be    ? exe_bd    :
                         stall_pc  ? pc_to_fet : gpr[`RIP_ADDR]+1 ;
-
-      gpr[`EFL_ADDR] <= exe_eflags|(mask&gpr[`EFL_ADDR]);
     end
   end
 

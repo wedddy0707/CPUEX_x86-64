@@ -13,7 +13,6 @@ module execute_phase (
   input wire                   de_efl_mode      ,
   input wire [`ADDR_W    -1:0] de_pc            ,
   input wire [`REG_W     -1:0] gpr  [`REG_N-1:0],
-  input wire [`REG_W     -1:0] eflags_as_src    ,
   output reg [`REG_W     -1:0] exe_d            ,
   output reg [`ADDR_W    -1:0] exe_bd           ,
   output reg                   exe_be           ,
@@ -29,7 +28,14 @@ module execute_phase (
   input wire                   clk              ,
   input wire                   rstn
 );
-  wire [`REG_W-1:0] exe_d;
+  wire [5*8-1:0] name;
+  //wire [`REG_W-1:0] exe_d;
+
+  // for debug;
+  instruction_name_by_ascii inba_1 (
+    .opcode(de_opcode),
+    .name  (name)
+  );
 
   assign exe_eflags_update = de_efl_mode;
 
@@ -40,14 +46,14 @@ module execute_phase (
   end
 
   alu alu_1 (
-    .d            (exe_d        ),
-    .opcode       (de_opcode    ),
-    .s            (de_s         ),
-    .t            (de_t         ),
-    .imm          (de_immediate ),
-    .bit_mode     (de_bit_mode  ),
-    .eflags       (exe_eflags   ),
-    .eflags_as_src(eflags_as_src)
+    .d            (exe_d         ),
+    .opcode       (de_opcode     ),
+    .s            (de_s          ),
+    .t            (de_t          ),
+    .imm          (de_immediate  ),
+    .bit_mode     (de_bit_mode   ),
+    .eflags       (exe_eflags    ),
+    .eflags_as_src(gpr[`EFL_ADDR])
   );
 
   execute_memory_access mem_1 (
@@ -174,8 +180,8 @@ module execute_branch (
        parity  ,
        sign    ;
   
-  wire [`ADDR_W-1:0] type_reg =`ADDR_W'(d)               ;
-  wire [`ADDR_W-1:0] type_rel = pc+`ADDR_W'(signed'(imm));
+  wire [`ADDR_W-1:0] type_reg =`ADDR_W'(d)                          ;
+  wire [`ADDR_W-1:0] type_rel = pc+`ADDR_W'(signed'(imm))+`ADDR_W'd1;
 
   condition_clarifier condition_clarifier_1 (
     .eflags  (eflags  ),

@@ -64,7 +64,7 @@ module fetch_phase #(
   wire head_inst = // 1命令の先頭のバイトを読むクロックで1になる
     (state==S_OPCODE_1)&(state_a_clk_ago!=S_OPCODE_1);
 
-  reg [8*5-1:0] name; // for debug
+  reg [8*6-1:0] name; // for debug
   reg [3:0] rex;
   wire      rex_w = rex[3];
   wire      rex_r = rex[2];
@@ -84,11 +84,20 @@ module fetch_phase #(
   integer i;
 
   always @(posedge clk) begin
-    if (~rstn | flush) begin
-      state          <= S_IGNORE_MEANGLESS_ADD_1;
-    end  else if (~stall) begin
+    if (~rstn) begin
+      state <= S_IGNORE_MEANGLESS_ADD_1;
+    end else if (flush) begin
+      state <= S_OPCODE_1;
+    end else if (stall) begin
+      state <= state;
+    end else begin
       mic_inst_valid <= 0;
       rex            <= 0;
+
+      for (i=0;i<`MICRO_Q_N;i=i+1) begin
+        mic_pc[i] <= pc_of_this_inst;
+      end
+
       case (state)
         S_IGNORE_MEANGLESS_ADD_1:begin state<= S_IGNORE_MEANGLESS_ADD_2;end
         S_IGNORE_MEANGLESS_ADD_2:begin state<= S_OPCODE_1;              end
@@ -115,9 +124,6 @@ module fetch_phase #(
             mic_reg_addr_t  [i] <= signed'(-1);
             imm_for_whom    [i] <= 0          ;
             disp_for_whom   [i] <= 0          ;
-            if (head_inst) begin
-              mic_pc[i] <= pc_of_this_inst;
-            end
           end
 
           // Priority Encoder
@@ -128,7 +134,7 @@ module fetch_phase #(
             */
             8'h4?:begin rex<=inst[3:0];            name<="PREFIX";end// REX prefix
             8'h0f:begin rex<=rex;state<=S_OPCODE_2;name<="PREFIX";end// Two-byte opcode escape
-            8'h100000??:// Grp1
+            8'b100000??:// Grp1
             begin
               /***************************************
               * case (inst[1:0])
@@ -626,7 +632,7 @@ module fetch_phase #(
                 3'd2   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ADCI;name<="ADC";end
                 3'd3   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SBBI;name<="SBB";end
                 3'd4   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ANDI;name<="AND";end
-                3'd4   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SUBI;name<="SUB";end
+                3'd5   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SUBI;name<="SUB";end
                 3'd6   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_XORI;name<="XOR";end
                 default:begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_CMPI;name<="CMP";end
               endcase
@@ -735,12 +741,17 @@ module fetch_phase #(
               * Load, Store を Nop に置き換え、
               * メインとなる命令のオペランドを指定しなおす
               */
-              state                          <= S_OPCODE_1;
-              mic_inst_valid                 <= 1;
               mic_opcode    [`MICRO_Q_LOAD ] <= `MICRO_NOP;
               mic_opcode    [`MICRO_Q_STORE] <= `MICRO_NOP;
               mic_reg_addr_d[`MICRO_Q_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
               mic_reg_addr_s[`MICRO_Q_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
+              
+              if (imm_byte==0) begin
+                state         <= S_OPCODE_1;
+                mic_inst_valid<= 1;
+              end else begin
+                state         <= S_IMMEDIATE;
+              end
             end
           endcase
         end
@@ -807,8 +818,6 @@ module fetch_phase #(
               endcase
             end
             default: /* = 2'b11 */ begin
-              state                          <= S_OPCODE_1;
-              mic_inst_valid                 <= 1;
               mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_NOP;
               case (substate_modrm_dest_r)
                 MODRM_DEST_R_LEA: begin
@@ -819,6 +828,12 @@ module fetch_phase #(
                   mic_reg_addr_t[`MICRO_Q_ARITH]<=`REG_ADDR_W'({rex_b,inst[2:0]});
                 end
               endcase
+              if (imm_byte==0) begin
+                state         <= S_OPCODE_1;
+                mic_inst_valid<= 1;
+              end else begin
+                state         <= S_IMMEDIATE;
+              end
             end
           endcase
         end

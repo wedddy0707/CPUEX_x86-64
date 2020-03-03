@@ -100,6 +100,72 @@ module register_usage_table (
     to_eflags } = select;
 endmodule
 
+module instruction_name_by_ascii (
+  input wire [`MICRO_W-1:0] opcode,
+  output reg [8*5     -1:0] name
+);
+  assign name =
+    (opcode==`MICRO_NOP  ) ? "NOP" :
+    (opcode==`MICRO_ADD  ) ? "ADD" :
+    (opcode==`MICRO_SUB  ) ? "SUB" :
+    (opcode==`MICRO_ADC  ) ? "ADC" :
+    (opcode==`MICRO_SBB  ) ? "SBB" :
+    (opcode==`MICRO_MUL  ) ? "MUL" :
+    (opcode==`MICRO_DIV  ) ? "DIV" :
+    (opcode==`MICRO_AND  ) ? "AND" :
+    (opcode==`MICRO_OR   ) ? "OR"  :
+    (opcode==`MICRO_XOR  ) ? "XOR" :
+    (opcode==`MICRO_SLL  ) ? "SLL" :
+    (opcode==`MICRO_SRL  ) ? "SRL" :
+    (opcode==`MICRO_SRA  ) ? "SRA" :
+    (opcode==`MICRO_ADDI ) ? "ADDI" :
+    (opcode==`MICRO_SUBI ) ? "SUBI" :
+    (opcode==`MICRO_ADCI ) ? "ADCI" :
+    (opcode==`MICRO_SBBI ) ? "SBBI" :
+    (opcode==`MICRO_MULI ) ? "MULI" :
+    (opcode==`MICRO_DIVI ) ? "DIVI" :
+    (opcode==`MICRO_ANDI ) ? "ANDI" :
+    (opcode==`MICRO_ORI  ) ? "ORI " :
+    (opcode==`MICRO_XORI ) ? "XORI" :
+    (opcode==`MICRO_SLLI ) ? "SLLI" :
+    (opcode==`MICRO_SRLI ) ? "SRLI" :
+    (opcode==`MICRO_SRAI ) ? "SRAI" :
+    (opcode==`MICRO_LB   ) ? "LB  " :
+    (opcode==`MICRO_LW   ) ? "LW  " :
+    (opcode==`MICRO_LD   ) ? "LD  " :
+    (opcode==`MICRO_LQ   ) ? "LQ  " :
+    (opcode==`MICRO_SB   ) ? "SB  " :
+    (opcode==`MICRO_SW   ) ? "SW  " :
+    (opcode==`MICRO_SD   ) ? "SD  " :
+    (opcode==`MICRO_SQ   ) ? "SQ  " :
+    (opcode==`MICRO_J    ) ? "J   " :
+    (opcode==`MICRO_JR   ) ? "JR  " :
+    (opcode==`MICRO_JA   ) ? "JA  " :
+    (opcode==`MICRO_JAE  ) ? "JAE " :
+    (opcode==`MICRO_JB   ) ? "JB  " :
+    (opcode==`MICRO_JBE  ) ? "JBE " :
+    (opcode==`MICRO_JC   ) ? "JC  " :
+    (opcode==`MICRO_JE   ) ? "JE  " :
+    (opcode==`MICRO_JG   ) ? "JG  " :
+    (opcode==`MICRO_JGE  ) ? "JGE " :
+    (opcode==`MICRO_JL   ) ? "JL  " :
+    (opcode==`MICRO_JLE  ) ? "JLE " :
+    (opcode==`MICRO_JO   ) ? "JO  " :
+    (opcode==`MICRO_JP   ) ? "JP  " :
+    (opcode==`MICRO_JS   ) ? "JS  " :
+    (opcode==`MICRO_JNE  ) ? "JNE " :
+    (opcode==`MICRO_JNP  ) ? "JNP " :
+    (opcode==`MICRO_JNS  ) ? "JNS " :
+    (opcode==`MICRO_JNO  ) ? "JNO " :
+    (opcode==`MICRO_JCX  ) ? "JCX " :
+    (opcode==`MICRO_MOV  ) ? "MOV " :
+    (opcode==`MICRO_MOVI ) ? "MOVI" :
+    (opcode==`MICRO_CMP  ) ? "CMP " :
+    (opcode==`MICRO_CMPI ) ? "CMPI" :
+    (opcode==`MICRO_TEST ) ? "TEST" :
+    (opcode==`MICRO_TESTI) ? "TESTI" : "???";
+endmodule
+
 /**********************************************
 * condition_clarifier:
 *   EFLAGSのようわからん情報を

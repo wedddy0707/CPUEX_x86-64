@@ -78,7 +78,8 @@ module decode_queue (
   always @(posedge clk) begin
     if (~rstn | flush) begin
       for (j=0;j<`DEC_Q_N;j=j+1) begin
-        deq_opcode[j] <= `MICRO_NOP;
+        deq_opcode  [j] <= `MICRO_NOP;
+        deq_bit_mode[j] <= 0;
       end
     end else if (~stall) begin
       for (j=0;j<`DEC_Q_N-1;j=j+1) begin

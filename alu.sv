@@ -161,7 +161,11 @@ module execute_add (
 
   wire [`REG_W:0] d_with_bits_maximum =
     (`REG_W+1)'(signed'(s))+(`REG_W+1)'(signed'(t));
-
+  assign d =
+    (bit_mode==`BIT_MODE_8 ) ? `REG_W'(d_with_bits_maximum[ 7:0]):
+    (bit_mode==`BIT_MODE_16) ? `REG_W'(d_with_bits_maximum[15:0]):
+    (bit_mode==`BIT_MODE_32) ? `REG_W'(d_with_bits_maximum[31:0]):
+                               `REG_W'(d_with_bits_maximum[63:0]);
   wire overflow =
     (bit_mode==`BIT_MODE_8 ) ? (d[ 7]&(~s[ 7])&(~t[ 7]))|((~d[ 7])&s[ 7]&t[ 7]):
     (bit_mode==`BIT_MODE_16) ? (d[15]&(~s[15])&(~t[15]))|((~d[15])&s[15]&t[15]):

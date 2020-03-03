@@ -37,41 +37,22 @@ module decode_phase #(
   input wire                   clk                  ,
   input wire                   rstn
 );
-  wire [8*5   -1:0] opcode_name =
-    (de_opcode==`MICRO_NOP ) ? "NOP"  :
-    (de_opcode==`MICRO_ADDI) ? "ADDI" :
-    (de_opcode==`MICRO_ADD ) ? "ADD"  :
-    (de_opcode==`MICRO_SB  ) ? "SB"   :
-    (de_opcode==`MICRO_LB  ) ? "LB"   :
-    (de_opcode==`MICRO_SD  ) ? "SD"   :
-    (de_opcode==`MICRO_LD  ) ? "LD"   :
-    (de_opcode==`MICRO_SQ  ) ? "SQ"   :
-    (de_opcode==`MICRO_LQ  ) ? "LQ"   :
-    (de_opcode==`MICRO_SLLI) ? "SLLI" :
-    (de_opcode==`MICRO_JR  ) ? "JR"   :
-    (de_opcode==`MICRO_MOV ) ? "MOV"  :
-    (de_opcode==`MICRO_MOVI) ? "MOVI" :
-    (de_opcode==`MICRO_CMP ) ? "CMP"  :
-    (de_opcode==`MICRO_CMPI) ? "CMPI" :
-    (de_opcode==`MICRO_XOR ) ? "XOR"  :
-    (de_opcode==`MICRO_LEA ) ? "LEA"  : "???";
-
   wire [`REG_W-1:0] dec_d;
   wire [`REG_W-1:0] dec_s;
   wire [`REG_W-1:0] dec_t;
 
   always @(posedge clk) begin
-    de_opcode      <=~rstn ? 0:flush ? 0:stall ? 0 :deq_opcode_head      ;
-    de_reg_addr_d  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_d_head  ;
-    de_reg_addr_s  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_s_head  ;
-    de_reg_addr_t  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_t_head  ;
-    de_immediate   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_immediate_head   ;
-    de_bit_mode    <=~rstn ? 0:flush ? 0:stall ? 0 :deq_bit_mode_head    ;
-    de_efl_mode    <=~rstn ? 0:flush ? 0:stall ? 0 :deq_efl_mode_head    ;
-    de_pc          <=~rstn ? 0:flush ? 0:stall ? 0 :deq_pc_head          ;
-    de_d           <=~rstn ? 0:flush ? 0:stall ? 0 :dec_d                ;
-    de_s           <=~rstn ? 0:flush ? 0:stall ? 0 :dec_s                ;
-    de_t           <=~rstn ? 0:flush ? 0:stall ? 0 :dec_t                ;
+    de_opcode     <=~rstn ? 0:flush ? 0:stall ? 0 :deq_opcode_head    ;
+    de_reg_addr_d <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_d_head;
+    de_reg_addr_s <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_s_head;
+    de_reg_addr_t <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_t_head;
+    de_immediate  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_immediate_head ;
+    de_bit_mode   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_bit_mode_head  ;
+    de_efl_mode   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_efl_mode_head  ;
+    de_pc         <=~rstn ? 0:flush ? 0:stall ? 0 :deq_pc_head        ;
+    de_d          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_d              ;
+    de_s          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_s              ;
+    de_t          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_t              ;
   end
   
   decode_phase_value_decision #(

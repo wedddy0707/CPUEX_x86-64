@@ -2,7 +2,9 @@
 `include "common_params.h"
 
 module core #(
-  parameter LOAD_LATEMCY = 1
+  parameter LOAD_LATEMCY = 1,
+  parameter INIT_RIP     = 0,
+  parameter INIT_RSP     = 1024
 ) (
   input wire [`DATA_W  -1:0] ld_data_for_inst,
   input wire [`DATA_W  -1:0] ld_data,
@@ -110,6 +112,7 @@ module core #(
     .fet_reg_addr_s       (fet_reg_addr_s       ),
     .fet_reg_addr_t       (fet_reg_addr_t       ),
     .fet_immediate        (fet_immediate        ),
+    .fet_bit_mode         (fet_bit_mode         ),
     .fet_efl_mode         (fet_efl_mode         ),
     .fet_inst_valid       (fet_inst_valid       ),
     .fet_pc               (fet_pc               ),
@@ -199,6 +202,7 @@ module core #(
     .de_opcode          (de_opcode          ),
     .exe_bd             (exe_bd             ),
     .exe_be             (exe_be             ),
+    .exe_eflags_update  (exe_eflags_update  ),
     .exe_eflags         (exe_eflags         ),
     .ew_opcode          (ew_opcode          ),
     .ew_reg_addr_d      (ew_reg_addr_d      ),
