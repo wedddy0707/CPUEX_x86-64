@@ -12,6 +12,7 @@ module fetch_phase #(
   output reg [`REG_ADDR_W-1:0] mic_reg_addr_t   [`MICRO_Q_N-1:0],
   output reg [`IMM_W     -1:0] mic_immediate    [`MICRO_Q_N-1:0],
   output reg [`BIT_MODE_W-1:0] mic_bit_mode     [`MICRO_Q_N-1:0],
+  output reg                   mic_efl_mode     [`MICRO_Q_N-1:0],
   output reg [`ADDR_W    -1:0] mic_pc           [`MICRO_Q_N-1:0],
   output reg                   mic_inst_valid                   ,
   input wire                   stall                            ,
@@ -108,6 +109,7 @@ module fetch_phase #(
             mic_opcode      [i] <=`MICRO_NOP  ;
             mic_immediate   [i] <= 0          ;
             mic_bit_mode    [i] <=`BIT_MODE_32;
+            mic_efl_mode    [i] <= 0          ;
             mic_reg_addr_d  [i] <= signed'(-1);
             mic_reg_addr_s  [i] <= signed'(-1);
             mic_reg_addr_t  [i] <= signed'(-1);
@@ -248,6 +250,7 @@ module fetch_phase #(
               */
               rex <= rex;
               mic_bit_mode[`MICRO_Q_ARITH] <=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_efl_mode[`MICRO_Q_ARITH] <= 1;
               case (inst[5:3])
                 3'b000 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ADDI:`MICRO_ADD;name<="ADD";end
                 3'b001 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ADCI:`MICRO_ADC;name<="ADC";end
@@ -512,10 +515,11 @@ module fetch_phase #(
             begin
               name <= "TEST";
               rex  <= rex   ;
-              mic_opcode[`MICRO_Q_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
-              mic_opcode[`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
-              mic_opcode[`MICRO_Q_ARITH]<=`MICRO_TEST                                             ;
-              state                     <= S_MODRM_DEST_RM                                        ;
+              mic_opcode  [`MICRO_Q_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
+              mic_opcode  [`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_TEST                                             ;
+              mic_efl_mode[`MICRO_Q_ARITH]<= 1;
+              state                       <= S_MODRM_DEST_RM                                        ;
             end
             8'b1010100?: // if (?=0) then TEST AL,imm8 else TEST AX/EAX/RAX,imm16/32/32
             begin
@@ -525,6 +529,7 @@ module fetch_phase #(
               mic_opcode  [`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
               imm_byte                    <=(~inst[0])? 1:4;
               imm_for_whom[`MICRO_Q_ARITH]<= 1             ;
+              mic_efl_mode[`MICRO_Q_ARITH]<= 1             ;
               state                       <= S_IMMEDIATE   ;
             end
             default:begin end

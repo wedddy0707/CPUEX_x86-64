@@ -8,6 +8,7 @@ module decode_queue (
   input wire [`REG_ADDR_W-1:0] fet_reg_addr_t  [`MICRO_Q_N-1:0],
   input wire [`IMM_W     -1:0] fet_immediate   [`MICRO_Q_N-1:0],
   input wire [`BIT_MODE_W-1:0] fet_bit_mode    [`MICRO_Q_N-1:0],
+  input wire                   fet_efl_mode    [`MICRO_Q_N-1:0],
   input wire [`ADDR_W    -1:0] fet_pc          [`MICRO_Q_N-1:0],
   input wire                   fet_inst_valid                  ,
   output reg [`MICRO_W   -1:0] deq_opcode_head                 ,
@@ -16,6 +17,7 @@ module decode_queue (
   output reg [`REG_ADDR_W-1:0] deq_reg_addr_t_head             ,
   output reg [`IMM_W     -1:0] deq_immediate_head              ,
   output reg [`BIT_MODE_W-1:0] deq_bit_mode_head               ,
+  output reg                   deq_efl_mode_head               ,
   output reg [`ADDR_W    -1:0] deq_pc_head                     ,
   input wire                   stall                           ,
   input wire                   flush                           ,
@@ -28,6 +30,7 @@ module decode_queue (
   reg  [`REG_ADDR_W -1:0] deq_reg_addr_t  [`DEC_Q_N-1:0];
   reg  [`IMM_W      -1:0] deq_immediate   [`DEC_Q_N-1:0];
   reg  [`BIT_MODE_W -1:0] deq_bit_mode    [`DEC_Q_N-1:0];
+  reg                     deq_efl_mode    [`DEC_Q_N-1:0];
   reg  [`ADDR_W     -1:0] deq_pc          [`DEC_Q_N-1:0];
   
   assign deq_opcode_head        = deq_opcode       [0];
@@ -36,6 +39,7 @@ module decode_queue (
   assign deq_reg_addr_t_head    = deq_reg_addr_t   [0];
   assign deq_immediate_head     = deq_immediate    [0];
   assign deq_bit_mode_head      = deq_bit_mode     [0];
+  assign deq_efl_mode_head      = deq_efl_mode     [0];
   assign deq_pc_head            = deq_pc           [0];
 
   wire [`MICRO_Q_N_W-1:0] fet_head_pre [`MICRO_Q_N-1:0];
@@ -84,6 +88,7 @@ module decode_queue (
         deq_reg_addr_t  [j] <= deq_reg_addr_t  [j+1];
         deq_immediate   [j] <= deq_immediate   [j+1];
         deq_bit_mode    [j] <= deq_bit_mode    [j+1];
+        deq_efl_mode    [j] <= deq_efl_mode    [j+1];
         deq_pc          [j] <= deq_pc          [j+1];
       end
 
@@ -96,6 +101,7 @@ module decode_queue (
             deq_reg_addr_t  [deq_tail+j] <= fet_reg_addr_t  [fet_head+j];
             deq_immediate   [deq_tail+j] <= fet_immediate   [fet_head+j];
             deq_bit_mode    [deq_tail+j] <= fet_bit_mode    [fet_head+j];
+            deq_efl_mode    [deq_tail+j] <= fet_efl_mode    [fet_head+j];
             deq_pc          [deq_tail+j] <= fet_pc          [fet_head+j];
           end
         end

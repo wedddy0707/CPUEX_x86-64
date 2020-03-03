@@ -10,8 +10,10 @@ module execute_phase (
   input wire [`IMM_W     -1:0] de_immediate     ,
   input wire [`DISP_W    -1:0] de_displacement  ,
   input wire [`BIT_MODE_W-1:0] de_bit_mode      ,
+  input wire                   de_efl_mode      ,
   input wire [`ADDR_W    -1:0] de_pc            ,
   input wire [`REG_W     -1:0] gpr  [`REG_N-1:0],
+  input wire [`REG_W     -1:0] eflags_as_src    ,
   output reg [`REG_W     -1:0] exe_d            ,
   output reg [`ADDR_W    -1:0] exe_bd           ,
   output reg                   exe_be           ,
@@ -28,15 +30,8 @@ module execute_phase (
   input wire                   rstn
 );
   wire [`REG_W-1:0] exe_d;
-  wire [`REG_W-1:0] cmp_d;
 
-  assign exe_eflags_update =
-    (de_opcode==`MICRO_CMP ) |
-    (de_opcode==`MICRO_CMPI) ;
-
-  assign exe_eflags =
-    (de_opcode==`MICRO_CMP ) ? cmp_d :
-    (de_opcode==`MICRO_CMPI) ? cmp_d : 0;
+  assign exe_eflags_update = de_efl_mode;
 
   always @(posedge clk) begin
     ew_d          <= ~rstn ? 0 : exe_d;
@@ -45,12 +40,14 @@ module execute_phase (
   end
 
   alu alu_1 (
-    .d       (exe_d           ),
-    .opcode  (de_opcode       ),
-    .s       (de_s            ),
-    .t       (de_t            ),
-    .imm     (de_immediate    ),
-    .bit_mode(de_bit_mode     )
+    .d            (exe_d        ),
+    .opcode       (de_opcode    ),
+    .s            (de_s         ),
+    .t            (de_t         ),
+    .imm          (de_immediate ),
+    .bit_mode     (de_bit_mode  ),
+    .eflags       (exe_eflags   ),
+    .eflags_as_src(eflags_as_src)
   );
 
   execute_memory_access mem_1 (
