@@ -27,23 +27,65 @@ module register_usage_table (
   localparam nothing = 10'b0000000000;
 
   wire [9:0] select =
-    (opcode==`MICRO_NOP ) ?                     nothing     :
-    (opcode==`MICRO_ADDI) ?   to_gd | gs                    :
-    (opcode==`MICRO_ADD ) ?   to_gd | gs | gt               :
-    (opcode==`MICRO_SB  ) ? from_gd | gs                    :
-    (opcode==`MICRO_SD  ) ? from_gd | gs                    :
-    (opcode==`MICRO_SQ  ) ? from_gd | gs                    :
-    (opcode==`MICRO_LB  ) ?   to_gd | gs                    :
-    (opcode==`MICRO_LD  ) ?   to_gd | gs                    :
-    (opcode==`MICRO_LQ  ) ?   to_gd | gs                    :
-    (opcode==`MICRO_SLLI) ?   to_gd | gs                    :
-    (opcode==`MICRO_JR  ) ? from_gd                         :
-    (opcode==`MICRO_MOV ) ?   to_gd |      gt               :
-    (opcode==`MICRO_MOVI) ?   to_gd                         :
-    (opcode==`MICRO_CMP ) ?           gs | gt |   to_eflags :
-    (opcode==`MICRO_CMPI) ?                gt |   to_eflags :
-    (opcode==`MICRO_XOR ) ?   to_gd | gs | gt               :
-    (opcode==`MICRO_LEA ) ?   to_gd | gs                    : nothing;
+    (opcode==`MICRO_NOP  ) ?                             nothing :
+    (opcode==`MICRO_ADD  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_SUB  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_ADC  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_SBB  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_MUL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_DIV  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_AND  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_OR   ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_XOR  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_SLL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_SRL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_SRA  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_ADDI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SUBI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_ADCI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SBBI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_MULI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_DIVI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_ANDI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_ORI  ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_XORI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SLLI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SRLI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SRAI ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_LB   ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_LW   ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_LD   ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_LQ   ) ?   to_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SB   ) ? from_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SW   ) ? from_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SD   ) ? from_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_SQ   ) ? from_gd | gs      | from_ef | to_ef :
+    (opcode==`MICRO_J    ) ?                             nothing :
+    (opcode==`MICRO_JR   ) ?                     from_ef         :
+    (opcode==`MICRO_JA   ) ?                     from_ef         :
+    (opcode==`MICRO_JAE  ) ?                     from_ef         :
+    (opcode==`MICRO_JB   ) ?                     from_ef         :
+    (opcode==`MICRO_JBE  ) ?                     from_ef         :
+    (opcode==`MICRO_JC   ) ?                     from_ef         :
+    (opcode==`MICRO_JE   ) ?                     from_ef         :
+    (opcode==`MICRO_JG   ) ?                     from_ef         :
+    (opcode==`MICRO_JGE  ) ?                     from_ef         :
+    (opcode==`MICRO_JL   ) ?                     from_ef         :
+    (opcode==`MICRO_JLE  ) ?                     from_ef         :
+    (opcode==`MICRO_JO   ) ?                     from_ef         :
+    (opcode==`MICRO_JP   ) ?                     from_ef         :
+    (opcode==`MICRO_JS   ) ?                     from_ef         :
+    (opcode==`MICRO_JNE  ) ?                     from_ef         :
+    (opcode==`MICRO_JNP  ) ?                     from_ef         :
+    (opcode==`MICRO_JNS  ) ?                     from_ef         :
+    (opcode==`MICRO_JNO  ) ?                     from_ef         :
+    (opcode==`MICRO_JCX  ) ?                     from_ef         :
+    (opcode==`MICRO_MOV  ) ?   to_gd |      gt                   :
+    (opcode==`MICRO_MOVI ) ?   to_gd                             :
+    (opcode==`MICRO_CMP  ) ?           gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_CMPI ) ?                gt | from_ef | to_ef :
+    (opcode==`MICRO_TEST ) ?           gs | gt | from_ef | to_ef :
+    (opcode==`MICRO_TESTI) ?                gt | from_ef | to_ef : nothing;
 
   assign {
     d_from_gpr,
