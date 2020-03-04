@@ -61,7 +61,7 @@ module register_usage_table (
     (opcode==`MICRO_SD   ) ? from_gd | gs      | from_ef | to_ef :
     (opcode==`MICRO_SQ   ) ? from_gd | gs      | from_ef | to_ef :
     (opcode==`MICRO_J    ) ?                             nothing :
-    (opcode==`MICRO_JR   ) ?                     from_ef         :
+    (opcode==`MICRO_JR   ) ? from_gd                             :
     (opcode==`MICRO_JA   ) ?                     from_ef         :
     (opcode==`MICRO_JAE  ) ?                     from_ef         :
     (opcode==`MICRO_JB   ) ?                     from_ef         :

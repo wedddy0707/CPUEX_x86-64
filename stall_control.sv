@@ -9,7 +9,7 @@ module stall_control #(
   input wire [`OPCODE_W  -1:0] exe_opcode             ,
   input wire [`OPCODE_W  -1:0] wri_opcode [EW_LAYER:0],
   input wire                   forward_from_exe       ,
-  input wire [LOAD_LATENCY :0] forward_from_wri       ,
+  input wire [EW_LAYER     :0] forward_from_wri       ,
   output reg                   stall_phase            ,
   output reg                   stall_pc               ,
   input wire                   clk                    ,

@@ -81,21 +81,21 @@ endmodule
 module decode_phase_value_decision #(
   parameter EW_LAYER = 1
 ) (
-  input  wire [`OPCODE_W   -1:0] opcode,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_d,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_s,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_t,
-  input  wire [`REG_W      -1:0] gpr [`REG_N-1:0],
+  input  wire [`OPCODE_W   -1:0] opcode               ,
+  input  wire [`REG_ADDR_W -1:0] reg_addr_d           ,
+  input  wire [`REG_ADDR_W -1:0] reg_addr_s           ,
+  input  wire [`REG_ADDR_W -1:0] reg_addr_t           ,
+  input  wire [`REG_W      -1:0] gpr      [`REG_N-1:0],
   input  wire                    forward_to_d_from_exe,
   input  wire                    forward_to_s_from_exe,
   input  wire                    forward_to_t_from_exe,
   input  wire [EW_LAYER      :0] forward_to_d_from_wri,
   input  wire [EW_LAYER      :0] forward_to_s_from_wri,
   input  wire [EW_LAYER      :0] forward_to_t_from_wri,
-  input  wire [`REG_W      -1:0] exe_d,
-  input  wire [`REG_W      -1:0] wri_d[EW_LAYER:0],
-  output wire [`REG_W      -1:0] d,
-  output wire [`REG_W      -1:0] s,
+  input  wire [`REG_W      -1:0] exe_d                ,
+  input  wire [`REG_W      -1:0] wri_d    [EW_LAYER:0],
+  output wire [`REG_W      -1:0] d                    ,
+  output wire [`REG_W      -1:0] s                    ,
   output wire [`REG_W      -1:0] t
 );
   wire d_from_fpr, s_from_fpr, t_from_fpr;
@@ -107,9 +107,9 @@ module decode_phase_value_decision #(
     .t_from_fpr (t_from_fpr)
   );
 
-  one_val_decision_following_forward_control #(
+  one_val_decision #(
     EW_LAYER
-  ) one_val_decision_following_forward_control_for_d (
+  ) one_val_decision_for_d (
     .reg_val         (gpr[reg_addr_d]),
     .forward_from_exe(forward_to_d_from_exe),
     .forward_from_wri(forward_to_d_from_wri),
@@ -118,9 +118,9 @@ module decode_phase_value_decision #(
     .source_val      (d)
   );
   
-  one_val_decision_following_forward_control #(
+  one_val_decision #(
     EW_LAYER
-  ) one_val_decision_following_forward_control_for_s (
+  ) one_val_decision_for_s (
     .reg_val         (gpr[reg_addr_s]),
     .forward_from_exe(forward_to_s_from_exe),
     .forward_from_wri(forward_to_s_from_wri),
@@ -129,9 +129,9 @@ module decode_phase_value_decision #(
     .source_val      (s)
   );
 
-  one_val_decision_following_forward_control #(
+  one_val_decision #(
     EW_LAYER
-  ) one_val_decision_following_forward_control_for_t (
+  ) one_val_decision_for_t (
     .reg_val         (gpr[reg_addr_t]),
     .forward_from_exe(forward_to_t_from_exe),
     .forward_from_wri(forward_to_t_from_wri),
@@ -141,15 +141,15 @@ module decode_phase_value_decision #(
   );
 endmodule
 
-module one_val_decision_following_forward_control #(
+module one_val_decision #(
   parameter EW_LAYER = 1
 ) (
-  input  wire [`REG_W      -1:0] reg_val,
-  input  wire                    forward_from_exe,
-  input  wire [EW_LAYER      :0] forward_from_wri,
-  input  wire [`REG_W      -1:0] exe_d,
-  input  wire [`REG_W      -1:0] wri_d[EW_LAYER:0],
-  output wire [`REG_W      -1:0] source_val
+  input  wire [`REG_W  -1:0] reg_val,
+  input  wire                forward_from_exe,
+  input  wire [EW_LAYER  :0] forward_from_wri,
+  input  wire [`REG_W  -1:0] exe_d,
+  input  wire [`REG_W  -1:0] wri_d[EW_LAYER:0],
+  output wire [`REG_W  -1:0] source_val
 );
   /************************************************
   * かなり読みづらくなっていますが,

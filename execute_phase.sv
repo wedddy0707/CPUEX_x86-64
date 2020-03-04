@@ -37,7 +37,6 @@ module execute_phase (
     .name  (name)
   );
 
-  assign exe_eflags_update = de_efl_mode;
 
   always @(posedge clk) begin
     ew_d          <= ~rstn ? 0 : exe_d;
@@ -46,14 +45,15 @@ module execute_phase (
   end
 
   alu alu_1 (
-    .d            (exe_d         ),
-    .opcode       (de_opcode     ),
-    .s            (de_s          ),
-    .t            (de_t          ),
-    .imm          (de_immediate  ),
-    .bit_mode     (de_bit_mode   ),
-    .eflags       (exe_eflags    ),
-    .eflags_as_src(gpr[`EFL_ADDR])
+    .d            (exe_d            ),
+    .opcode       (de_opcode        ),
+    .s            (de_s             ),
+    .t            (de_t             ),
+    .imm          (de_immediate     ),
+    .bit_mode     (de_bit_mode      ),
+    .eflags       (exe_eflags       ),
+    .eflags_update(exe_eflags_update),
+    .eflags_as_src(gpr[`EFL_ADDR]   )
   );
 
   execute_memory_access mem_1 (
@@ -65,7 +65,9 @@ module execute_phase (
     .mem_addr (mem_addr    ),
     .ld_offset(ew_ld_offset),
     .st_data  (st_data     ),
-    .we       (we          )
+    .we       (we          ),
+    .clk      (clk         ),
+    .rstn     (rstn        )
   );
   execute_branch br_1 (
     .opcode           (de_opcode     ),
@@ -96,7 +98,7 @@ module execute_memory_access (
   wire [`ADDR_W:0] a = signed'({1'b0,s})+(`ADDR_W+1)'(signed'(imm));
 
   always @(posedge clk) begin
-    st_data   <= ~rstn ? 0 : d;
+    st_data   <= ~rstn ? 0 : d << {a[2:0],3'b000} ;
     mem_addr  <= ~rstn ? 0 : {3'b0,a[`ADDR_W-1:3]};
     ld_offset <= ~rstn ? 0 : a[2:0];
     we        <= ~rstn ? 0 :

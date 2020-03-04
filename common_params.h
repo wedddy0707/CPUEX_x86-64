@@ -56,6 +56,7 @@
 `define MICRO_Q_RSRV1   (`MICRO_Q_N_W'd4)
 `define MICRO_Q_RSRV2   (`MICRO_Q_N_W'd5)
 `define MICRO_Q_RSRV3   (`MICRO_Q_N_W'd6)
+`define MICRO_Q_RSRV4   (`MICRO_Q_N_W'd7)
 
 `define MICRO_ADD    (`MICRO_W'b0000011)
 `define MICRO_SUB    (`MICRO_W'b0001011)
@@ -122,12 +123,5 @@
 `define BIT_MODE_16  (`BIT_MODE_W'd2)
 `define BIT_MODE_32  (`BIT_MODE_W'd1)
 `define BIT_MODE_64  (`BIT_MODE_W'd0)
-
-`define ALU_W    8
-`define ALU_ADD  0
-`define ALU_ADC  1
-`define ALU_AND  2
-`define ALU_XOR  3
-`define ALU_OR   4
 
 `endif

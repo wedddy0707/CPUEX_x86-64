@@ -345,7 +345,7 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "RET";
-              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LD          ;
+              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LQ          ;
               mic_reg_addr_d[`MICRO_Q_LOAD ] <=`TMP_ADDR          ;
               mic_reg_addr_s[`MICRO_Q_LOAD ] <=`RSP_ADDR          ;
               mic_opcode    [`MICRO_Q_ARITH] <=`MICRO_ADDI        ;
@@ -367,7 +367,7 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "RET";
-              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LD          ;
+              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LQ          ;
               mic_reg_addr_d[`MICRO_Q_LOAD ] <=`TMP_ADDR          ;
               mic_reg_addr_s[`MICRO_Q_LOAD ] <=`RSP_ADDR          ;
               mic_opcode    [`MICRO_Q_ARITH] <=`MICRO_ADDI        ;
@@ -390,22 +390,33 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "CALL";
-              // Reserve1 と Reserve2 で Push(RIP) を実行
-              mic_opcode    [`MICRO_Q_RSRV1] <=`MICRO_ADDI         ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1] <=`RSP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV1] <=`RSP_ADDR           ;
-              mic_immediate [`MICRO_Q_RSRV1] <=`IMM_W'(signed'(-8));
-              mic_bit_mode  [`MICRO_Q_RSRV1] <=`BIT_MODE_64        ;
-              mic_opcode    [`MICRO_Q_RSRV2] <=`MICRO_SQ           ;
-              mic_reg_addr_d[`MICRO_Q_RSRV2] <=`RIP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV2] <=`RSP_ADDR           ;
-              // Reserve3 で Jump
-              mic_opcode    [`MICRO_Q_RSRV3] <=`MICRO_J            ;
-              mic_reg_addr_d[`MICRO_Q_RSRV3] <=`TMP_ADDR           ;
-              disp_for_whom [`MICRO_Q_RSRV3] <= 1                  ;
-              disp_byte                      <= 4                  ;
-              rex                            <= rex                ;
-              state                          <= S_DISPLACEMENT     ;
+              mic_opcode    [`MICRO_Q_RSRV1] <=`MICRO_MOVI               ;
+              mic_reg_addr_d[`MICRO_Q_RSRV1] <=`TMP_ADDR                 ;
+              mic_immediate [`MICRO_Q_RSRV1] <=`REG_W'(pc_of_this_inst)+5;
+              mic_opcode    [`MICRO_Q_RSRV2] <=`MICRO_ADDI               ;
+              mic_reg_addr_d[`MICRO_Q_RSRV2] <=`RSP_ADDR                 ;
+              mic_reg_addr_s[`MICRO_Q_RSRV2] <=`RSP_ADDR                 ;
+              mic_immediate [`MICRO_Q_RSRV2] <=`IMM_W'(signed'(-8))      ;
+              mic_bit_mode  [`MICRO_Q_RSRV2] <=`BIT_MODE_64              ;
+              mic_opcode    [`MICRO_Q_RSRV3] <=`MICRO_SQ                 ;
+              mic_reg_addr_d[`MICRO_Q_RSRV3] <=`TMP_ADDR                 ;
+              mic_reg_addr_s[`MICRO_Q_RSRV3] <=`RSP_ADDR                 ;
+              mic_opcode    [`MICRO_Q_RSRV4] <=`MICRO_J                  ;
+              disp_for_whom [`MICRO_Q_RSRV4] <= 1                        ;
+              disp_byte                      <= 4                        ;
+              rex                            <= rex                      ;
+              state                          <= S_DISPLACEMENT           ;
+            end
+            /*********************
+            *     - JMP
+            */
+            8'heb:
+            begin
+              name <= "JMP";
+              mic_opcode   [`MICRO_Q_RSRV1] <=`MICRO_J;
+              disp_for_whom[`MICRO_Q_RSRV1] <= 1;
+              disp_byte                     <= 1;
+              state                         <= S_DISPLACEMENT;
             end
             8'h9A:begin end // Call ptr16:16(32) 無視
             /*********************
@@ -624,7 +635,7 @@ module fetch_phase #(
               /***********************************************************
               * The instructions in Grp1 takes an immediate value.
               * They need both Load-type and Store-type instructions.
-              *
+              * Except CMP.
               */
               case (inst[5:3])
                 3'd0   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ADDI;name<="ADD";end
@@ -634,7 +645,7 @@ module fetch_phase #(
                 3'd4   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ANDI;name<="AND";end
                 3'd5   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SUBI;name<="SUB";end
                 3'd6   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_XORI;name<="XOR";end
-                default:begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_CMPI;name<="CMP";end
+                default:begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_CMPI;name<="CMP";mic_opcode[`MICRO_Q_STORE]<=`MICRO_NOP;end
               endcase
             end
             MODRM_DEST_RM_GRP_1A: // inst[5:3] indicates some instruction.
@@ -716,8 +727,12 @@ module fetch_phase #(
                 end
                 default:// SIBもDISPLACEMENTも無し
                 begin
-                  state          <= S_OPCODE_1;
-                  mic_inst_valid <= 1;
+                  if (imm_byte==0) begin
+                    state         <= S_OPCODE_1;
+                    mic_inst_valid<= 1;
+                  end else begin
+                    state         <= S_IMMEDIATE;
+                  end
                 end
               endcase
             end
@@ -765,7 +780,14 @@ module fetch_phase #(
           mic_reg_addr_s[`MICRO_Q_LOAD ]<=`SCL_ADDR                     ;
           mic_reg_addr_s[`MICRO_Q_STORE]<=`SCL_ADDR                     ;
           
-          state <= (disp_byte==0) ? S_OPCODE_1 : S_DISPLACEMENT         ;
+          if (disp_byte!=0) begin
+            state <= S_DISPLACEMENT;
+          end else if (imm_byte!=0) begin
+            state <= S_IMMEDIATE;
+          end else begin
+            state <= S_OPCODE_1;
+            mic_inst_valid <= 1;
+          end
         end
         S_MODRM_DEST_R:
         begin
@@ -798,8 +820,12 @@ module fetch_phase #(
                 end
                 default:// SIBもDisplacementも無し
                 begin
-                  state <= S_OPCODE_1;
-                  mic_inst_valid <= 1;
+                  if (imm_byte==0) begin
+                    state         <= S_OPCODE_1;
+                    mic_inst_valid<= 1;
+                  end else begin
+                    state         <= S_IMMEDIATE;
+                  end
                 end
               endcase
             end
@@ -845,7 +871,14 @@ module fetch_phase #(
           mic_immediate [`MICRO_Q_SCALE]<=`IMM_W'(inst[7:6])            ;
           mic_bit_mode  [`MICRO_Q_SCALE]<=`BIT_MODE_64                  ;
           mic_reg_addr_s[`MICRO_Q_LOAD ]<=`SCL_ADDR                     ;
-          state <= (disp_byte==0) ? S_OPCODE_1 : S_DISPLACEMENT         ;
+          if (disp_byte!=0) begin
+            state <= S_DISPLACEMENT;
+          end else if (imm_byte!=0) begin
+            state <= S_IMMEDIATE;
+          end else begin
+            state <= S_OPCODE_1;
+            mic_inst_valid <= 1;
+          end
         end
 
         S_IMMEDIATE:
@@ -899,8 +932,12 @@ module fetch_phase #(
           disp_cnt <= disp_cnt+1;
 
           if (disp_byte==disp_cnt+1) begin
-            state          <= S_OPCODE_1;
-            mic_inst_valid <= 1;
+            if (imm_byte==0) begin
+              state <= S_OPCODE_1;
+              mic_inst_valid <= 1;
+            end else begin
+              state <= S_IMMEDIATE;
+            end         
           end
           
           for (i=0;i<`MICRO_Q_N;i=i+1)
@@ -909,28 +946,28 @@ module fetch_phase #(
             begin
               case (disp_cnt)
                 2'd0: begin
-                  if (disp_signex) begin
+                  if (1|disp_signex) begin
                     mic_immediate[i][`DISP_W-1: 0]<=`DISP_W'(signed'(inst));
                   end else begin
                     mic_immediate[i][`DISP_W-1: 0]<=`DISP_W'(inst);
                   end
                 end
                 2'd1: begin
-                  if (disp_signex) begin
+                  if (1|disp_signex) begin
                     mic_immediate[i][`DISP_W-1: 8]<=(`DISP_W-8)'(signed'(inst));
                   end else begin
                     mic_immediate[i][`DISP_W-1: 8]<=(`DISP_W-8)'(inst);
                   end
                 end
                 2'd2: begin
-                  if (disp_signex) begin
+                  if (1|disp_signex) begin
                     mic_immediate[i][`DISP_W-1:16]<=(`DISP_W-16)'(signed'(inst));
                   end else begin
                     mic_immediate[i][`DISP_W-1:16]<=(`DISP_W-16)'(inst);
                   end
                 end
                 default: begin
-                  if (disp_signex) begin
+                  if (1|disp_signex) begin
                     mic_immediate[i][`DISP_W-1:24]<=(`DISP_W-24)'(signed'(inst));
                   end else begin
                     mic_immediate[i][`DISP_W-1:24]<=(`DISP_W-24)'(inst);
