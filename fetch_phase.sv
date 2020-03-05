@@ -1,5 +1,7 @@
 `default_nettype none
 `include "common_params.h"
+`include "common_params_in_fetch_phase.sv"
+
 
 module fetch_phase #(
   parameter LOAD_LATENCY = 1
@@ -20,21 +22,7 @@ module fetch_phase #(
   input wire                   clk                              ,
   input wire                   rstn
 );
-
-  enum {
-    S_IGNORE_MEANGLESS_ADD_1, // SはStateのS
-    S_IGNORE_MEANGLESS_ADD_2,
-    S_OPCODE_1,
-    S_OPCODE_2,
-    S_OPCODE_3,
-    S_MODRM_DEST_RM, // r/mがデスティネーションレジスタ
-    S_MODRM_DEST_R,  //   rがデスティネーションレジスタ
-    S_MODRM_AS_EFFECTIVE_ADDRESS,
-    S_SIB_DEST_RM,
-    S_SIB_DEST_R,
-    S_DISPLACEMENT,
-    S_IMMEDIATE
-  } state, state_a_clk_ago;
+  fstate state, state_a_clk_ago;
 
   enum {
     MODRM_DEST_RM_DEFAULT,

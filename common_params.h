@@ -1,6 +1,8 @@
 `ifndef COMMON_PARAMS_H
 `define COMMON_PARAMS_H
 
+`define NAME_W (6*8)
+
 `define DATA_W 64 // メモリのデータ幅
 `define ADDR_W 32
 `define INST_W  8
@@ -10,13 +12,13 @@
 `define REG_N       (2**`REG_ADDR_W)
 `define MICRO_W      7
 `define OPCODE_W    (`MICRO_W) // `MICRO_W のエイリアス
-`define MICRO_Q_N_W  3
-`define MICRO_Q_N   (2**(`MICRO_Q_N_W))
-`define DEC_Q_N_W    4
-`define DEC_Q_N     (2**(`DEC_Q_N_W))
+`define MQ_N_W       3
+`define MQ_N        (2**(`MICRO_Q_N_W))
+`define DQ_N_W       4
+`define DQ_N        (2**(`DEC_Q_N_W))
 `define IMM_W       32
 `define DISP_W      32
-`define BIT_MODE_W   2
+`define BIT_MD_W     2
 
 `define RAX_ADDR (`REG_ADDR_W'd0)
 `define RCX_ADDR (`REG_ADDR_W'd1)
@@ -49,14 +51,14 @@
 `define EFLAGS_VIP  (`REG_W'd20)
 `define EFLAGS_ID   (`REG_W'd21)
 
-`define MICRO_Q_SCALE   (`MICRO_Q_N_W'd0) // SIBに応じてシフトを実行する
-`define MICRO_Q_LOAD    (`MICRO_Q_N_W'd1) // ModR/Mに応じてLoad又は即値を$tempに保持
-`define MICRO_Q_ARITH   (`MICRO_Q_N_W'd2) // 算術（論理）演算の実行
-`define MICRO_Q_STORE   (`MICRO_Q_N_W'd3) // ModR/Mに応じてStore
-`define MICRO_Q_RSRV1   (`MICRO_Q_N_W'd4)
-`define MICRO_Q_RSRV2   (`MICRO_Q_N_W'd5)
-`define MICRO_Q_RSRV3   (`MICRO_Q_N_W'd6)
-`define MICRO_Q_RSRV4   (`MICRO_Q_N_W'd7)
+`define MQ_SCALE (`MICRO_Q_N_W'd0) // SIBに応じてシフトを実行する
+`define MQ_LOAD  (`MICRO_Q_N_W'd1) // ModR/Mに応じてLoad又は即値を$tempに保持
+`define MQ_ARITH (`MICRO_Q_N_W'd2) // 算術（論理）演算の実行
+`define MQ_STORE (`MICRO_Q_N_W'd3) // ModR/Mに応じてStore
+`define MQ_RSRV1 (`MICRO_Q_N_W'd4)
+`define MQ_RSRV2 (`MICRO_Q_N_W'd5)
+`define MQ_RSRV3 (`MICRO_Q_N_W'd6)
+`define MQ_RSRV4 (`MICRO_Q_N_W'd7)
 
 `define MICRO_ADD    (`MICRO_W'b0000011)
 `define MICRO_SUB    (`MICRO_W'b0001011)
@@ -119,9 +121,10 @@
 `define MICRO_TEST   (`MICRO_W'b0011100)
 `define MICRO_TESTI  (`MICRO_W'b0011100)
 
-`define BIT_MODE_8   (`BIT_MODE_W'd3)
-`define BIT_MODE_16  (`BIT_MODE_W'd2)
-`define BIT_MODE_32  (`BIT_MODE_W'd1)
-`define BIT_MODE_64  (`BIT_MODE_W'd0)
+`define BIT_MD_8  (`BIT_MD_W'd3)
+`define BIT_MD_16 (`BIT_MD_W'd2)
+`define BIT_MD_32 (`BIT_MD_W'd1)
+`define BIT_MD_64 (`BIT_MD_W'd0)
+
 
 `endif
