@@ -13,7 +13,7 @@
 `define MICRO_W      7
 `define OPCODE_W    (`MICRO_W) // `MICRO_W のエイリアス
 `define MQ_N_W       3
-`define MQ_N        (2**(`MICRO_Q_N_W))
+`define MQ_N        (2**(`MQ_N_W))
 `define DQ_N_W       4
 `define DQ_N        (2**(`DEC_Q_N_W))
 `define IMM_W       32

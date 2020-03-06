@@ -1,49 +1,23 @@
 `default_nettype none
 `include "common_params.h"
-`include "common_params_in_fetch_phase.sv"
+`include "common_params_svfiles.sv"
 
 
 module fetch_phase #(
   parameter LOAD_LATENCY = 1
 ) (
-  input wire [ 8         -1:0] inst, // 毎クロック来る命令
-  input wire [`ADDR_W    -1:0] pc_of_this_inst, // と、そのPC
-  output reg [`MICRO_W   -1:0] mic_opcode       [`MICRO_Q_N-1:0],
-  output reg [`REG_ADDR_W-1:0] mic_reg_addr_d   [`MICRO_Q_N-1:0],
-  output reg [`REG_ADDR_W-1:0] mic_reg_addr_s   [`MICRO_Q_N-1:0],
-  output reg [`REG_ADDR_W-1:0] mic_reg_addr_t   [`MICRO_Q_N-1:0],
-  output reg [`IMM_W     -1:0] mic_immediate    [`MICRO_Q_N-1:0],
-  output reg [`BIT_MODE_W-1:0] mic_bit_mode     [`MICRO_Q_N-1:0],
-  output reg                   mic_efl_mode     [`MICRO_Q_N-1:0],
-  output reg [`ADDR_W    -1:0] mic_pc           [`MICRO_Q_N-1:0],
-  output reg                   mic_inst_valid                   ,
-  input wire                   stall                            ,
-  input wire                   flush                            ,
-  input wire                   clk                              ,
-  input wire                   rstn
+  input  inst_t   inst             ,
+  input  addr_t   pc  ,
+  output miinst_t miinst[`MQ_N-1:0],
+  output reg      valid            ,
+  input wire      stall,
+  input wire      flush,
+  input wire      clk  ,
+  input wire      rstn
 );
   fstate state, state_a_clk_ago;
 
-  enum {
-    MODRM_DEST_RM_DEFAULT,
-    MODRM_DEST_RM_GRP_1  ,
-    MODRM_DEST_RM_GRP_1A ,
-    MODRM_DEST_RM_GRP_2  ,
-    MODRM_DEST_RM_GRP_3  ,
-    MODRM_DEST_RM_GRP_4  ,
-    MODRM_DEST_RM_GRP_5  ,
-    MODRM_DEST_RM_GRP_6  ,
-    MODRM_DEST_RM_GRP_7  ,
-    MODRM_DEST_RM_GRP_8  ,
-    MODRM_DEST_RM_GRP_9  ,
-    MODRM_DEST_RM_GRP_10 ,
-    MODRM_DEST_RM_GRP_11
-  } substate_modrm_dest_rm;
-
-  enum {
-    MODRM_DEST_R_DEFAULT,
-    MODRM_DEST_R_LEA
-  } substate_modrm_dest_r;
+  fsubst substate;
 
   always @(posedge clk) begin
     state_a_clk_ago <= state;
@@ -52,7 +26,7 @@ module fetch_phase #(
   wire head_inst = // 1命令の先頭のバイトを読むクロックで1になる
     (state==S_OPCODE_1)&(state_a_clk_ago!=S_OPCODE_1);
 
-  reg [8*6-1:0] name; // for debug
+  name_t name; // for debug
   reg [3:0] rex;
   wire      rex_w = rex[3];
   wire      rex_r = rex[2];
@@ -60,15 +34,101 @@ module fetch_phase #(
   wire      rex_b = rex[0];
 
 
-  reg [`MICRO_Q_N -1:0] imm_for_whom ;// どの命令が imm  を欲しているのか
-  reg [`IMM_W/8   -1:0] imm_byte     ;// byte size of following immediate
-  reg                   imm_signex   ;// immediate signed extended
-  reg [            1:0] imm_cnt      ;
-  reg [`MICRO_Q_N -1:0] disp_for_whom;// どの命令が disp を欲しているのか
-  reg [`DISP_W/8  -1:0] disp_byte    ;// byte size of following displacement
-  reg                   disp_signex  ;// displacement signed extended
-  reg [            1:0] disp_cnt     ;
+  reg [`MQ_N -1:0] imm_to       ;// どの命令が imm  を欲しているのか
+  reg [       3:0] imm_byte     ;// byte size of following immediate
+  reg              imm_signex   ;// immediate signed extended
+  reg [       1:0] imm_cnt      ;
+  reg [`MQ_N -1:0] disp_to      ;// どの命令が disp を欲しているのか
+  reg [       3:0] disp_byte    ;// byte size of following displacement
+  reg              disp_signex  ;// displacement signed extended
+  reg [       1:0] disp_cnt     ;
   
+  function bmd_t bmd_det (
+    input cond_bmd_08,
+    input cond_bmd_64
+  );
+  begin
+    bmd_det = (cond_bmd_08) ? BMD_08:
+              (cond_bmd_64) ? BMD_64:
+                              BMD_32;
+  end
+  endfunction
+
+  function [3:0] imm_byte_det (
+    input cond_one_byte,
+    input cond_four_byte
+  );
+  begin
+    imm_byte_det = (cond_one_byte ) ? 1:
+                   (cond_four_byte) ? 4:
+                                      0;
+  end
+  endfunction
+  
+  function miinst_t make_miinst(
+    input miop_t opcode,
+    input rega_t d,
+    input rega_t s,
+    input rega_t t,
+    input imm_t  imm.
+    input bmd_t  bmd,
+    input addr_t pc
+  );
+  begin
+    make_miinst.opcode <= opcode;
+    make_miinst.d      <= d;
+    make_miinst.s      <= s;
+    make_miinst.t      <= t;
+    make_miinst.imm    <= imm;
+    make_miinst.bmd    <= bmd;
+    make_miinst.pc     <= pc;
+  end
+  endfunction
+  
+  function miinst_t load_on_pop (input rega_t dest);
+  begin
+    load_on_pop.opcode <= MIOP_L;
+    load_on_pop.d      <= dest;
+    load_on_pop.s      <=`RSP_ADDR;
+    load_on_pop.imm    <=`IMM_W'(signed'(8));
+    load_on_pop.bmd    <= BMD_64;
+    load_on_pop.pc     <= 0; // doesn't matter.
+  end
+  endfunction
+
+  function miinst_t addi_on_pop ();
+  begin
+    addi_on_pop.opcode <= MIOP_ADDI;
+    addi_on_pop.d      <=`RSP_ADDR;
+    addi_on_pop.s      <=`RSP_ADDR;
+    addi_on_pop.imm    <= 0;
+    addi_on_pop.bmd    <= BMD_64;
+    addi_on_pop.pc     <= 0; // doesn't matter.
+  end
+  endfunction
+  
+  function miinst_t addi_on_push ();
+  begin
+    addi_on_push.opcode <= MIOP_ADDI;
+    addi_on_push.d      <=`RSP_ADDR;
+    addi_on_push.s      <=`RSP_ADDR;
+    addi_on_push.imm    <=`IMM_W'(signed'(-8));
+    addi_on_push.bmd    <= BMD_64;
+    addi_on_push.pc     <= 0; // doesn't matter.
+  end
+  endfunction
+  
+  function miinst_t store_on_push (input rega_t dest);
+  begin
+    store_on_push.opcode <= MIOP_S;
+    store_on_push.d      <= dest;
+    store_on_push.s      <=`RSP_ADDR;
+    store_on_push.imm    <= 0;
+    store_on_push.bmd    <= BMD_64;
+    store_on_push.pc     <= 0; // doesn't matter.
+  end
+  endfunction
+
   integer i;
 
   always @(posedge clk) begin
@@ -79,11 +139,14 @@ module fetch_phase #(
     end else if (stall) begin
       state <= state;
     end else begin
-      mic_inst_valid <= 0;
-      rex            <= 0;
+      valid <= 0;
 
-      for (i=0;i<`MICRO_Q_N;i=i+1) begin
-        mic_pc[i] <= pc_of_this_inst;
+      if (head_inst) begin
+        rex <= 0;
+      end
+
+      for (i=0;i<`MQ_N;i=i+1) begin
+        miinst[i].pc <= pc;
       end
 
       case (state)
@@ -102,16 +165,15 @@ module fetch_phase #(
           imm_cnt     <= 0;
           substate_modrm_dest_rm <= MODRM_DEST_RM_DEFAULT;
           substate_modrm_dest_r  <= MODRM_DEST_R_DEFAULT ;
-          for (i=0;i<`MICRO_Q_N;i=i+1) begin
-            mic_opcode      [i] <=`MICRO_NOP  ;
-            mic_immediate   [i] <= 0          ;
-            mic_bit_mode    [i] <=`BIT_MODE_32;
-            mic_efl_mode    [i] <= 0          ;
-            mic_reg_addr_d  [i] <= signed'(-1);
-            mic_reg_addr_s  [i] <= signed'(-1);
-            mic_reg_addr_t  [i] <= signed'(-1);
-            imm_for_whom    [i] <= 0          ;
-            disp_for_whom   [i] <= 0          ;
+          for (i=0;i<`MQ_N;i=i+1) begin
+            miinst [i].opcode <= MIOP_NOP;
+            miinst [i].imm    <= 0;
+            miinst [i].bmd    <= BMD_32;
+            miinst [i].d      <= 0;
+            miinst [i].s      <= 0;
+            miinst [i].t      <= 0;
+            imm_to [i]        <= 0;
+            disp_to[i]        <= 0;
           end
 
           // Priority Encoder
@@ -120,8 +182,16 @@ module fetch_phase #(
             /**************************
             *       Prefixes
             */
-            8'h4?:begin rex<=inst[3:0];            name<="PREFIX";end// REX prefix
-            8'h0f:begin rex<=rex;state<=S_OPCODE_2;name<="PREFIX";end// Two-byte opcode escape
+            8'h4?:
+            begin
+              rex<=inst[3:0];
+              name<="PREFIX";
+            end// REX prefix
+            8'h0f:
+            begin
+              state<=S_OPCODE_2;
+              name<="PREFIX";
+            end// Two-byte opcode escape
             8'b100000??:// Grp1
             begin
               /***************************************
@@ -133,21 +203,14 @@ module fetch_phase #(
               * endcase
               */
               name <="PREFIX";
-              rex  <= rex    ;
-              mic_opcode  [`MICRO_Q_LOAD ] <=(inst[1:0]==2'd0)?`MICRO_LB   :
-                                             (rex_w          )?`MICRO_LQ   :
-                                                               `MICRO_LD   ;
-              mic_opcode  [`MICRO_Q_STORE] <=(inst[1:0]==2'd0)?`MICRO_SB   :
-                                             (rex_w          )?`MICRO_SQ   :
-                                                               `MICRO_SD   ;
-              imm_for_whom[`MICRO_Q_ARITH] <= 1                            ;
-              imm_signex                   <= 1                            ;
-              imm_byte                     <=(inst[1:0]==2'd1)? 4:1        ;
-              mic_bit_mode[`MICRO_Q_ARITH] <=(inst[1:0]==2'd0)?`BIT_MODE_8 :
-                                             (rex_w          )?`BIT_MODE_64:
-                                                               `BIT_MODE_32;
-              state                        <= S_MODRM_DEST_RM              ;
-              substate_modrm_dest_rm       <= MODRM_DEST_RM_GRP_1          ;
+              for(i=0;i<MQ_N;i=i+1) begin
+                miinst[i].bmd <= bmd_det(inst[1:0]==2'd0, rex_w);
+              end
+              imm_to[`MQ_ARITH] <= 1;
+              imm_signex        <= 1;
+              imm_byte          <= imm_byte_det(inst[1:0]==2'd0||inst[1:0]==2'd3,1);
+              state             <= S_MODRM;
+              substate          <= MODRM_DEST_RM_GRP_1;
             end
             8'h8f: // Grp1A, (Pop r/m16(32,64)のみ)
             begin
@@ -158,34 +221,23 @@ module fetch_phase #(
               * 統一感を出すためにこのステートでは分からない振り。
               */
               name  <="PREFIX";
-              rex   <= rex    ;
-              mic_opcode  [`MICRO_Q_LOAD ] <=(inst[1:0]==2'd0)?`MICRO_LB:
-                                             (rex_w          )?`MICRO_LQ:
-                                                               `MICRO_LD;
-              mic_opcode  [`MICRO_Q_STORE] <=(inst[1:0]==2'd0)?`MICRO_SB:
-                                             (rex_w          )?`MICRO_SQ:
-                                                               `MICRO_SD;
-              state                        <= S_MODRM_DEST_RM           ;
-              substate_modrm_dest_rm       <= MODRM_DEST_RM_GRP_1A      ;
+              for(i=0;i<MQ_N;i=i+1) begin
+                miinst[i].bmd <= bmd_det(inst[1:0]==2'd0, rex_w);
+              end
+              state    <= S_MODRM;
+              substate <= MODRM_DEST_RM_GRP_1A;
             end
             8'b1111011?:// Grp3
             begin
               // if (?=0) 8-bit else 16/32/64-bit mode.
 
             end
-            8'hff:// Grp5
+            8'hff:// Grp5, Call,Jmp,Push,etc...
             begin
-              /****************************************************
-              * The instructions in Grp5 don't need `MICRO_Q_STORE
-              * instruction.
-              */
-              name  <="PREFIX";
-              rex   <= rex    ;
-              mic_opcode  [`MICRO_Q_LOAD ] <=(inst[1:0]==2'd0)?`MICRO_LB:
-                                             (rex_w          )?`MICRO_LQ:
-                                                               `MICRO_LD;
-              state                        <= S_MODRM_DEST_RM           ;
-              substate_modrm_dest_rm       <= MODRM_DEST_RM_GRP_5       ;
+              name                  <="PREFIX";
+              miinst[`MQ_LOAD ].bmd <= bmd_det(0,rex_w);
+              state                 <= S_MODRM;
+              substate              <= MODRM_DEST_RM_GRP_5;
             end
             8'b1100011?: // Grp11
             begin
@@ -195,18 +247,14 @@ module fetch_phase #(
               * instruction.
               */
               name <= "Grp11";
-              rex  <= rex;
-              mic_opcode  [`MICRO_Q_STORE] <=(inst[1:0]==2'd0)?`MICRO_SB   :
-                                             (rex_w          )?`MICRO_SQ   :
-                                                               `MICRO_SD   ;
-              imm_for_whom[`MICRO_Q_ARITH] <= 1                            ;
-              imm_signex                   <= 0                            ;
-              imm_byte                     <=(inst[1:0]==2'd1)? 4:1        ;
-              mic_bit_mode[`MICRO_Q_ARITH] <=(inst[1:0]==2'd0)?`BIT_MODE_8 :
-                                             (rex_w          )?`BIT_MODE_64:
-                                                               `BIT_MODE_32;
-              state                        <= S_MODRM_DEST_RM              ;
-              substate_modrm_dest_rm       <= MODRM_DEST_RM_GRP_11         ;
+              for(i=0;i<MQ_N;i=i+1) begin
+                miinst[i].bmd <= bmd_det(~inst[0], rex_w);
+              end
+              imm_to[`MQ_ARITH] <= 1                       ;
+              imm_signex        <= 0                       ;
+              imm_byte          <= imm_byte_det(~inst[0],1);
+              state             <= S_MODRM;
+              substate          <= MODRM_DEST_RM_GRP_11;
             end
             
             8'b000?011?: // Pop/Push ES/SS.
@@ -242,35 +290,28 @@ module fetch_phase #(
               *
               * 
               */
-              rex <= rex;
-              mic_bit_mode[`MICRO_Q_ARITH] <=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
-              mic_efl_mode[`MICRO_Q_ARITH] <= 1;
-              case (inst[5:3])
-                3'b000 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ADDI:`MICRO_ADD;name<="ADD";end
-                3'b001 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ADCI:`MICRO_ADC;name<="ADC";end
-                3'b010 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ANDI:`MICRO_AND;name<="AND";end
-                3'b011 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_XORI:`MICRO_XOR;name<="XOR";end
-                3'b100 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_ORI :`MICRO_OR ;name<="OR" ;end
-                3'b101 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_SBBI:`MICRO_SBB;name<="SBB";end
-                3'b110 :begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_SUBI:`MICRO_SUB;name<="SUB";end
-                default:begin mic_opcode[`MICRO_Q_ARITH]<=(inst[2])?`MICRO_CMPI:`MICRO_CMP;name<="CMP";end
-              endcase
-              if (inst[2]) begin
-                mic_reg_addr_d[`MICRO_Q_ARITH]<=`RAX_ADDR     ;
-                mic_reg_addr_s[`MICRO_Q_ARITH]<=`RAX_ADDR     ;
-                imm_byte                      <=(inst[0])? 4:1;
-                imm_for_whom  [`MICRO_Q_ARITH]<= 1            ;
-                imm_signex                    <= 1            ;
-                state                         <= S_IMMEDIATE  ;
-              end else begin
-                mic_opcode  [`MICRO_Q_LOAD ]<=(~inst[0])?`MICRO_LB:(rex_w)?`MICRO_LQ:`MICRO_LD;
-                if (~inst[1]) begin
-                  mic_opcode[`MICRO_Q_STORE]<=(~inst[0])?`MICRO_SB:(rex_w)?`MICRO_SQ:`MICRO_SD;
-                  state                     <= S_MODRM_DEST_RM                                ;
-                end else begin
-                  state                     <= S_MODRM_DEST_R                                 ;
-                end
+              for(i=0;i<MQ_N;i=i+1) begin
+                miinst[i].bmd <= bmd_det(~inst[0], rex_w);
               end
+              miinst[`MQ_ARITH].d <= `RAX_ADDR;
+              miinst[`MQ_ARITH].s <= `RAX_ADDR;
+              imm_byte            <= imm_byte_det(inst[2]&~inst[0],inst[2]);
+              imm_to[`MQ_ARITH]   <= 1;
+              imm_signex          <= 1;
+              case (inst[5:3])
+                3'b000 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ADDI:MIOP_ADD;miinst[`MQ_ARITH].name<="ADD";end
+                3'b001 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ADCI:MIOP_ADC;miinst[`MQ_ARITH].name<="ADC";end
+                3'b010 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ANDI:MIOP_AND;miinst[`MQ_ARITH].name<="AND";end
+                3'b011 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_XORI:MIOP_XOR;miinst[`MQ_ARITH].name<="XOR";end
+                3'b100 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ORI :MIOP_OR ;miinst[`MQ_ARITH].name<="OR" ;end
+                3'b101 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_SBBI:MIOP_SBB;miinst[`MQ_ARITH].name<="SBB";end
+                3'b110 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_SUBI:MIOP_SUB;miinst[`MQ_ARITH].name<="SUB";end
+                default:begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_CMPI:MIOP_CMP;miinst[`MQ_ARITH].name<="CMP";end
+              endcase
+              state     <= (inst[2]) ? S_IMMEDIATE: S_MODRM;
+              substate  <= (inst[2]) ? IMMEDIATE_1  :
+                           (inst[1]) ? MODRM_DEST_R :
+                                       MODRM_DEST_RM;
             end
             /**********************************************
             *     - Push/Pop r16(32,64)
@@ -283,25 +324,17 @@ module fetch_phase #(
               * inst[2:0] indicates the address of register.
               */
               // Use Stack Pointer in this instruction
-              mic_reg_addr_d[`MICRO_Q_LOAD ]<=`REG_ADDR_W'({rex_b,inst[2:0]});
-              mic_reg_addr_s[`MICRO_Q_LOAD ]<=`RSP_ADDR                      ;
-              mic_opcode    [`MICRO_Q_ARITH]<=`MICRO_ADDI                    ;
-              mic_reg_addr_d[`MICRO_Q_ARITH]<=`RSP_ADDR                      ;
-              mic_reg_addr_s[`MICRO_Q_ARITH]<=`RSP_ADDR                      ;
-              mic_bit_mode  [`MICRO_Q_ARITH]<=`BIT_MODE_64                   ;
-              mic_reg_addr_d[`MICRO_Q_STORE]<=`REG_ADDR_W'({rex_b,inst[2:0]});
-              mic_reg_addr_s[`MICRO_Q_STORE]<=`RSP_ADDR                      ;
-              mic_inst_valid                <= 1                             ;
-              state                         <= S_OPCODE_1                    ;
-
+              
+              valid <= 1;
+              state <= S_OPCODE_1;
               if (inst[3]) begin // Pop
                 name <= "POP";
-                mic_opcode   [`MICRO_Q_LOAD ]<=`MICRO_LQ;
-                mic_immediate[`MICRO_Q_ARITH]<=`IMM_W'(signed'( 8));
+                miinst[0] <=  load_on_pop(`REG_ADDR_W'({rex_b,inst[2:0]});
+                miinst[1] <=  addi_on_pop();
               end else begin     // Push
                 name <= "PUSH";
-                mic_immediate[`MICRO_Q_ARITH]<=`IMM_W'(signed'(-8));
-                mic_opcode   [`MICRO_Q_STORE]<=`MICRO_SQ           ;
+                miinst[0] <=  addi_on_push();
+                miinst[1] <= store_on_push(`REG_ADDR_W'({rex_b,inst[2:0]});
               end
             end
             8'b011010?0: // Push imm8/16/32
@@ -311,20 +344,14 @@ module fetch_phase #(
               */
               // Use Stack Pointer in this instruction
               name <= "PUSH";
-              mic_opcode    [`MICRO_Q_RSRV1]<=`MICRO_MOVI         ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1]<=`TMP_ADDR           ;
-              mic_opcode    [`MICRO_Q_RSRV2]<=`MICRO_ADDI         ;
-              mic_reg_addr_d[`MICRO_Q_RSRV2]<=`RSP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV2]<=`RSP_ADDR           ;
-              mic_immediate [`MICRO_Q_RSRV2]<=`IMM_W'(signed'(-8));
-              mic_bit_mode  [`MICRO_Q_RSRV2]<=`BIT_MODE_64        ;
-              mic_opcode    [`MICRO_Q_RSRV3]<=`MICRO_SB           ;
-              mic_reg_addr_d[`MICRO_Q_RSRV3]<=`TMP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV3]<=`RSP_ADDR           ;
-              imm_for_whom  [`MICRO_Q_RSRV1]<= 1                  ;
-              imm_byte                      <=(inst[1])? 1:4;
-              imm_signex                    <= 1          ;
-              state                         <= S_IMMEDIATE;
+              miinst[0] <=   make_miinst(MIOP_MOVI,`TMP_ADDR,0,0,0,inst[1]? BMD_08:BMD_32,pc);
+              miinst[1] <=  addi_on_push();
+              miinst[2] <= store_on_push(`TMP_ADDR);
+
+              imm_to[0] <= 1;
+              imm_byte  <= imm_byte_det(inst[1]);
+              imm_signex<= 1          ;
+              state     <= S_IMMEDIATE;
             end
             /*********************
             *     - Ret
@@ -333,38 +360,28 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "RET";
-              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LQ          ;
-              mic_reg_addr_d[`MICRO_Q_LOAD ] <=`TMP_ADDR          ;
-              mic_reg_addr_s[`MICRO_Q_LOAD ] <=`RSP_ADDR          ;
-              mic_opcode    [`MICRO_Q_ARITH] <=`MICRO_ADDI        ;
-              mic_reg_addr_d[`MICRO_Q_ARITH] <=`RSP_ADDR          ;
-              mic_reg_addr_s[`MICRO_Q_ARITH] <=`RSP_ADDR          ;
-              mic_immediate [`MICRO_Q_ARITH] <=`IMM_W'(signed'(8));
-              mic_bit_mode  [`MICRO_Q_ARITH] <=`BIT_MODE_64       ;
-              mic_opcode    [`MICRO_Q_RSRV1] <=`MICRO_JR          ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1] <=`TMP_ADDR          ;
-              mic_opcode    [`MICRO_Q_RSRV2] <=`MICRO_ADDI        ;
-              mic_bit_mode  [`MICRO_Q_RSRV2] <=`BIT_MODE_32       ;
-              mic_reg_addr_d[`MICRO_Q_RSRV2] <=`RSP_ADDR          ;
-              mic_reg_addr_s[`MICRO_Q_RSRV2] <=`RSP_ADDR          ;
-              imm_for_whom  [`MICRO_Q_RSRV2] <= 1                 ;
-              imm_byte                       <= 2                 ;
-              state                          <= S_IMMEDIATE       ;
+              miinst[0] <= load_on_pop(`TMP_ADDR);
+              miinst[1] <= addi_on_pop();
+              miinst[2] <= make_miinst(MIOP_JR  ,`TMP_ADDR,        0,0,0,BMD_32,pc);
+              miinst[3] <= make_miinst(MIOP_ADDI,`RSP_ADDR,`RSP_ADDR,0,0,BMD_64,pc);
+              imm_to[3] <= 1;
+              imm_byte  <= 2;
+              state     <= S_IMMEDIATE;
             end
             8'hc3: // Ret (Near return)
             begin
               // Use Stack Pointer in this instruction
               name <= "RET";
-              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_LQ          ;
-              mic_reg_addr_d[`MICRO_Q_LOAD ] <=`TMP_ADDR          ;
-              mic_reg_addr_s[`MICRO_Q_LOAD ] <=`RSP_ADDR          ;
-              mic_opcode    [`MICRO_Q_ARITH] <=`MICRO_ADDI        ;
-              mic_reg_addr_d[`MICRO_Q_ARITH] <=`RSP_ADDR          ;
-              mic_reg_addr_s[`MICRO_Q_ARITH] <=`RSP_ADDR          ;
-              mic_immediate [`MICRO_Q_ARITH] <=`IMM_W'(signed'(8));
-              mic_bit_mode  [`MICRO_Q_ARITH] <=`BIT_MODE_64       ;
-              mic_opcode    [`MICRO_Q_RSRV1] <=`MICRO_JR          ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1] <=`TMP_ADDR          ;
+              mic_opcode    [`MQ_LOAD ] <=`MICRO_LQ          ;
+              mic_reg_addr_d[`MQ_LOAD ] <=`TMP_ADDR          ;
+              mic_reg_addr_s[`MQ_LOAD ] <=`RSP_ADDR          ;
+              mic_opcode    [`MQ_ARITH] <=`MICRO_ADDI        ;
+              mic_reg_addr_d[`MQ_ARITH] <=`RSP_ADDR          ;
+              mic_reg_addr_s[`MQ_ARITH] <=`RSP_ADDR          ;
+              mic_immediate [`MQ_ARITH] <=`IMM_W'(signed'(8));
+              mic_bit_mode  [`MQ_ARITH] <=`BIT_MODE_64       ;
+              mic_opcode    [`MQ_RSRV1] <=`MICRO_JR          ;
+              mic_reg_addr_d[`MQ_RSRV1] <=`TMP_ADDR          ;
               mic_inst_valid                 <= 1                 ;
               state                          <= S_OPCODE_1        ;
             end
@@ -378,21 +395,20 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "CALL";
-              mic_opcode    [`MICRO_Q_RSRV1] <=`MICRO_MOVI               ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1] <=`TMP_ADDR                 ;
-              mic_immediate [`MICRO_Q_RSRV1] <=`REG_W'(pc_of_this_inst)+5;
-              mic_opcode    [`MICRO_Q_RSRV2] <=`MICRO_ADDI               ;
-              mic_reg_addr_d[`MICRO_Q_RSRV2] <=`RSP_ADDR                 ;
-              mic_reg_addr_s[`MICRO_Q_RSRV2] <=`RSP_ADDR                 ;
-              mic_immediate [`MICRO_Q_RSRV2] <=`IMM_W'(signed'(-8))      ;
-              mic_bit_mode  [`MICRO_Q_RSRV2] <=`BIT_MODE_64              ;
-              mic_opcode    [`MICRO_Q_RSRV3] <=`MICRO_SQ                 ;
-              mic_reg_addr_d[`MICRO_Q_RSRV3] <=`TMP_ADDR                 ;
-              mic_reg_addr_s[`MICRO_Q_RSRV3] <=`RSP_ADDR                 ;
-              mic_opcode    [`MICRO_Q_RSRV4] <=`MICRO_J                  ;
-              disp_for_whom [`MICRO_Q_RSRV4] <= 1                        ;
+              mic_opcode    [`MQ_RSRV1] <=`MICRO_MOVI               ;
+              mic_reg_addr_d[`MQ_RSRV1] <=`TMP_ADDR                 ;
+              mic_immediate [`MQ_RSRV1] <=`REG_W'(pc)+5;
+              mic_opcode    [`MQ_RSRV2] <=`MICRO_ADDI               ;
+              mic_reg_addr_d[`MQ_RSRV2] <=`RSP_ADDR                 ;
+              mic_reg_addr_s[`MQ_RSRV2] <=`RSP_ADDR                 ;
+              mic_immediate [`MQ_RSRV2] <=`IMM_W'(signed'(-8))      ;
+              mic_bit_mode  [`MQ_RSRV2] <=`BIT_MODE_64              ;
+              mic_opcode    [`MQ_RSRV3] <=`MICRO_SQ                 ;
+              mic_reg_addr_d[`MQ_RSRV3] <=`TMP_ADDR                 ;
+              mic_reg_addr_s[`MQ_RSRV3] <=`RSP_ADDR                 ;
+              mic_opcode    [`MQ_RSRV4] <=`MICRO_J                  ;
+              disp_to [`MQ_RSRV4] <= 1                        ;
               disp_byte                      <= 4                        ;
-              rex                            <= rex                      ;
               state                          <= S_DISPLACEMENT           ;
             end
             /*********************
@@ -401,8 +417,8 @@ module fetch_phase #(
             8'heb:
             begin
               name <= "JMP";
-              mic_opcode   [`MICRO_Q_RSRV1] <=`MICRO_J;
-              disp_for_whom[`MICRO_Q_RSRV1] <= 1;
+              mic_opcode   [`MQ_RSRV1] <=`MICRO_J;
+              disp_to[`MQ_RSRV1] <= 1;
               disp_byte                     <= 1;
               state                         <= S_DISPLACEMENT;
             end
@@ -414,12 +430,11 @@ module fetch_phase #(
             8'b100010??:
             begin
               name <="MOV";
-              rex  <= rex ;
-              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_MOV;
-              mic_bit_mode[`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
-              mic_opcode  [`MICRO_Q_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
+              mic_opcode  [`MQ_ARITH]<=`MICRO_MOV;
+              mic_bit_mode[`MQ_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_opcode  [`MQ_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
               if (~inst[1]) begin
-                mic_opcode[`MICRO_Q_STORE]<=(~inst[0])?  `MICRO_SB:(rex_w)?   `MICRO_SQ:   `MICRO_SD;
+                mic_opcode[`MQ_STORE]<=(~inst[0])?  `MICRO_SB:(rex_w)?   `MICRO_SQ:   `MICRO_SD;
                 state                     <= S_MODRM_DEST_RM;
               end else begin
                 state                     <= S_MODRM_DEST_R ;
@@ -443,11 +458,10 @@ module fetch_phase #(
               *   Mov   $r    $temp
               */
               name <="LEA";
-              rex  <= rex ;
-              mic_opcode  [`MICRO_Q_LOAD ]<=`MICRO_ADDI      ;// ADDI comes in pretending to be "Load".
-              mic_bit_mode[`MICRO_Q_LOAD ]<=`BIT_MODE_32     ;
-              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_MOV       ;
-              mic_bit_mode[`MICRO_Q_ARITH]<=`BIT_MODE_32     ;
+              mic_opcode  [`MQ_LOAD ]<=`MICRO_ADDI      ;// ADDI comes in pretending to be "Load".
+              mic_bit_mode[`MQ_LOAD ]<=`BIT_MODE_32     ;
+              mic_opcode  [`MQ_ARITH]<=`MICRO_MOV       ;
+              mic_bit_mode[`MQ_ARITH]<=`BIT_MODE_32     ;
               state                       <= S_MODRM_DEST_R  ;
               substate_modrm_dest_r       <= MODRM_DEST_R_LEA;
             end
@@ -462,15 +476,15 @@ module fetch_phase #(
             */
             begin
               name <= "MOV";
-              mic_opcode    [`MICRO_Q_ARITH] <=`MICRO_MOVI                    ;
-              mic_reg_addr_d[`MICRO_Q_ARITH] <=`REG_ADDR_W'({rex_b,inst[2:0]});
-              imm_for_whom  [`MICRO_Q_ARITH] <= 1                             ;
+              mic_opcode    [`MQ_ARITH] <=`MICRO_MOVI                    ;
+              mic_reg_addr_d[`MQ_ARITH] <=`REG_ADDR_W'({rex_b,inst[2:0]});
+              imm_to  [`MQ_ARITH] <= 1                             ;
               state                          <= S_IMMEDIATE                   ;
               if (inst[3]==0) begin
-                mic_bit_mode[`MICRO_Q_ARITH] <=`BIT_MODE_8                    ;
+                mic_bit_mode[`MQ_ARITH] <=`BIT_MODE_8                    ;
                 imm_byte                     <= 1                             ;
               end else begin
-                mic_bit_mode[`MICRO_Q_ARITH] <=rex_w?`BIT_MODE_64:`BIT_MODE_32;
+                mic_bit_mode[`MQ_ARITH] <=rex_w?`BIT_MODE_64:`BIT_MODE_32;
                 imm_byte                     <= 4                             ;
               end
             end
@@ -481,24 +495,24 @@ module fetch_phase #(
             begin
               name <= "JCC";
               case (inst[3:0])
-                4'h0   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JO ;
-                4'h1   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNO;
-                4'h2   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JB ;
-                4'h3   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JAE;
-                4'h4   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JE ;
-                4'h5   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNE;
-                4'h6   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JBE;
-                4'h7   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JA ;
-                4'h8   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JS ;
-                4'h9   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNS;
-                4'ha   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JP ;
-                4'hb   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNP;
-                4'hc   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JL ;
-                4'hd   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JGE;
-                4'he   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JLE;
-                default:mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JG ;
+                4'h0   :mic_opcode[`MQ_RSRV1] <=`MICRO_JO ;
+                4'h1   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNO;
+                4'h2   :mic_opcode[`MQ_RSRV1] <=`MICRO_JB ;
+                4'h3   :mic_opcode[`MQ_RSRV1] <=`MICRO_JAE;
+                4'h4   :mic_opcode[`MQ_RSRV1] <=`MICRO_JE ;
+                4'h5   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNE;
+                4'h6   :mic_opcode[`MQ_RSRV1] <=`MICRO_JBE;
+                4'h7   :mic_opcode[`MQ_RSRV1] <=`MICRO_JA ;
+                4'h8   :mic_opcode[`MQ_RSRV1] <=`MICRO_JS ;
+                4'h9   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNS;
+                4'ha   :mic_opcode[`MQ_RSRV1] <=`MICRO_JP ;
+                4'hb   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNP;
+                4'hc   :mic_opcode[`MQ_RSRV1] <=`MICRO_JL ;
+                4'hd   :mic_opcode[`MQ_RSRV1] <=`MICRO_JGE;
+                4'he   :mic_opcode[`MQ_RSRV1] <=`MICRO_JLE;
+                default:mic_opcode[`MQ_RSRV1] <=`MICRO_JG ;
               endcase
-              disp_for_whom[`MICRO_Q_RSRV1] <= 1;
+              disp_to[`MQ_RSRV1] <= 1;
               disp_byte                     <= 1;
               disp_signex                   <= 1;
               state                         <= S_DISPLACEMENT;
@@ -506,9 +520,9 @@ module fetch_phase #(
             8'he3: // JCX rel8 (CX/ECX/RCX = 0)
             begin
               name <= "JCX";
-              mic_opcode   [`MICRO_Q_RSRV1] <=`MICRO_JCX;
-              mic_bit_mode [`MICRO_Q_RSRV1] <= rex_w ? `BIT_MODE_64:`BIT_MODE_32;
-              disp_for_whom[`MICRO_Q_RSRV1] <= 1;
+              mic_opcode   [`MQ_RSRV1] <=`MICRO_JCX;
+              mic_bit_mode [`MQ_RSRV1] <= rex_w ? `BIT_MODE_64:`BIT_MODE_32;
+              disp_to[`MQ_RSRV1] <= 1;
               disp_byte                     <= 1;
               disp_signex                   <= 1;
               state                         <= S_DISPLACEMENT;
@@ -519,22 +533,20 @@ module fetch_phase #(
             8'b1000010?: // if (?=0) then TEST r/m8 r8 else TEST r/m16(32,64) r16(32,64)
             begin
               name <= "TEST";
-              rex  <= rex   ;
-              mic_opcode  [`MICRO_Q_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
-              mic_opcode  [`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
-              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_TEST                                             ;
-              mic_efl_mode[`MICRO_Q_ARITH]<= 1;
+              mic_opcode  [`MQ_LOAD ]<=(~inst[0])?  `MICRO_LB:(rex_w)?   `MICRO_LQ:   `MICRO_LD;
+              mic_opcode  [`MQ_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_opcode  [`MQ_ARITH]<=`MICRO_TEST                                             ;
+              mic_efl_mode[`MQ_ARITH]<= 1;
               state                       <= S_MODRM_DEST_RM                                        ;
             end
             8'b1010100?: // if (?=0) then TEST AL,imm8 else TEST AX/EAX/RAX,imm16/32/32
             begin
               name <= "TEST";
-              rex  <= rex   ;
-              mic_opcode  [`MICRO_Q_ARITH]<=`MICRO_TESTI                                            ;
-              mic_opcode  [`MICRO_Q_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
+              mic_opcode  [`MQ_ARITH]<=`MICRO_TESTI                                            ;
+              mic_opcode  [`MQ_ARITH]<=(~inst[0])?`BIT_MODE_8:(rex_w)?`BIT_MODE_64:`BIT_MODE_32;
               imm_byte                    <=(~inst[0])? 1:4;
-              imm_for_whom[`MICRO_Q_ARITH]<= 1             ;
-              mic_efl_mode[`MICRO_Q_ARITH]<= 1             ;
+              imm_to[`MQ_ARITH]<= 1             ;
+              mic_efl_mode[`MQ_ARITH]<= 1             ;
               state                       <= S_IMMEDIATE   ;
             end
             default:begin end
@@ -551,24 +563,24 @@ module fetch_phase #(
             begin
               name <= "JCC";
               case (inst[3:0])
-                4'h0   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JO ;
-                4'h1   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNO;
-                4'h2   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JB ;
-                4'h3   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JAE;
-                4'h4   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JE ;
-                4'h5   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNE;
-                4'h6   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JBE;
-                4'h7   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JA ;
-                4'h8   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JS ;
-                4'h9   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNS;
-                4'ha   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JP ;
-                4'hb   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JNP;
-                4'hc   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JL ;
-                4'hd   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JGE;
-                4'he   :mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JLE;
-                default:mic_opcode[`MICRO_Q_RSRV1] <=`MICRO_JG ;
+                4'h0   :mic_opcode[`MQ_RSRV1] <=`MICRO_JO ;
+                4'h1   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNO;
+                4'h2   :mic_opcode[`MQ_RSRV1] <=`MICRO_JB ;
+                4'h3   :mic_opcode[`MQ_RSRV1] <=`MICRO_JAE;
+                4'h4   :mic_opcode[`MQ_RSRV1] <=`MICRO_JE ;
+                4'h5   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNE;
+                4'h6   :mic_opcode[`MQ_RSRV1] <=`MICRO_JBE;
+                4'h7   :mic_opcode[`MQ_RSRV1] <=`MICRO_JA ;
+                4'h8   :mic_opcode[`MQ_RSRV1] <=`MICRO_JS ;
+                4'h9   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNS;
+                4'ha   :mic_opcode[`MQ_RSRV1] <=`MICRO_JP ;
+                4'hb   :mic_opcode[`MQ_RSRV1] <=`MICRO_JNP;
+                4'hc   :mic_opcode[`MQ_RSRV1] <=`MICRO_JL ;
+                4'hd   :mic_opcode[`MQ_RSRV1] <=`MICRO_JGE;
+                4'he   :mic_opcode[`MQ_RSRV1] <=`MICRO_JLE;
+                default:mic_opcode[`MQ_RSRV1] <=`MICRO_JG ;
               endcase
-              disp_for_whom[`MICRO_Q_RSRV1] <= 1;
+              disp_to[`MQ_RSRV1] <= 1;
               disp_byte                     <= 4;
               disp_signex                   <= 1;
               state                         <= S_DISPLACEMENT;
@@ -606,16 +618,16 @@ module fetch_phase #(
           * GrpやModによって変更することがあるので注意.
           *
           */
-          mic_reg_addr_d[`MICRO_Q_LOAD ] <=`TMP_ADDR                      ;
-          mic_reg_addr_s[`MICRO_Q_LOAD ] <=`REG_ADDR_W'({rex_b,inst[2:0]});
-          mic_reg_addr_d[`MICRO_Q_ARITH] <=`TMP_ADDR                      ;
-          mic_reg_addr_s[`MICRO_Q_ARITH] <=`TMP_ADDR                      ;
-          mic_reg_addr_t[`MICRO_Q_ARITH] <=`REG_ADDR_W'({rex_r,inst[5:3]});
-          mic_reg_addr_d[`MICRO_Q_STORE] <=`TMP_ADDR                      ;
-          mic_reg_addr_s[`MICRO_Q_STORE] <=`REG_ADDR_W'({rex_b,inst[2:0]});
+          mic_reg_addr_d[`MQ_LOAD ] <=`TMP_ADDR                      ;
+          mic_reg_addr_s[`MQ_LOAD ] <=`REG_ADDR_W'({rex_b,inst[2:0]});
+          mic_reg_addr_d[`MQ_ARITH] <=`TMP_ADDR                      ;
+          mic_reg_addr_s[`MQ_ARITH] <=`TMP_ADDR                      ;
+          mic_reg_addr_t[`MQ_ARITH] <=`REG_ADDR_W'({rex_r,inst[5:3]});
+          mic_reg_addr_d[`MQ_STORE] <=`TMP_ADDR                      ;
+          mic_reg_addr_s[`MQ_STORE] <=`REG_ADDR_W'({rex_b,inst[2:0]});
 
-          disp_for_whom [`MICRO_Q_LOAD ] <= 1;
-          disp_for_whom [`MICRO_Q_STORE] <= 1;
+          disp_to [`MQ_LOAD ] <= 1;
+          disp_to [`MQ_STORE] <= 1;
           
           case (substate_modrm_dest_rm)
             MODRM_DEST_RM_GRP_1: // inst[5:3] indicates some instruction.
@@ -626,14 +638,14 @@ module fetch_phase #(
               * Except CMP.
               */
               case (inst[5:3])
-                3'd0   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ADDI;name<="ADD";end
-                3'd1   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ORI ;name<="OR" ;end
-                3'd2   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ADCI;name<="ADC";end
-                3'd3   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SBBI;name<="SBB";end
-                3'd4   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_ANDI;name<="AND";end
-                3'd5   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_SUBI;name<="SUB";end
-                3'd6   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_XORI;name<="XOR";end
-                default:begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_CMPI;name<="CMP";mic_opcode[`MICRO_Q_STORE]<=`MICRO_NOP;end
+                3'd0   :begin mic_opcode[`MQ_ARITH]<=`MICRO_ADDI;name<="ADD";end
+                3'd1   :begin mic_opcode[`MQ_ARITH]<=`MICRO_ORI ;name<="OR" ;end
+                3'd2   :begin mic_opcode[`MQ_ARITH]<=`MICRO_ADCI;name<="ADC";end
+                3'd3   :begin mic_opcode[`MQ_ARITH]<=`MICRO_SBBI;name<="SBB";end
+                3'd4   :begin mic_opcode[`MQ_ARITH]<=`MICRO_ANDI;name<="AND";end
+                3'd5   :begin mic_opcode[`MQ_ARITH]<=`MICRO_SUBI;name<="SUB";end
+                3'd6   :begin mic_opcode[`MQ_ARITH]<=`MICRO_XORI;name<="XOR";end
+                default:begin mic_opcode[`MQ_ARITH]<=`MICRO_CMPI;name<="CMP";mic_opcode[`MQ_STORE]<=`MICRO_NOP;end
               endcase
             end
             MODRM_DEST_RM_GRP_1A: // inst[5:3] indicates some instruction.
@@ -641,11 +653,11 @@ module fetch_phase #(
               // Use Stack Pointer in this instruction
               case (inst[5:3])
                 3'd0   :begin                                         name<="POP";
-                  mic_opcode    [`MICRO_Q_RSRV1]<=`MICRO_ADDI        ;
-                  mic_reg_addr_d[`MICRO_Q_RSRV1]<=`RSP_ADDR          ;
-                  mic_reg_addr_s[`MICRO_Q_RSRV1]<=`RSP_ADDR          ;
-                  mic_bit_mode  [`MICRO_Q_RSRV1]<=`BIT_MODE_64       ;
-                  mic_immediate [`MICRO_Q_RSRV1]<=`IMM_W'(signed'(8));
+                  mic_opcode    [`MQ_RSRV1]<=`MICRO_ADDI        ;
+                  mic_reg_addr_d[`MQ_RSRV1]<=`RSP_ADDR          ;
+                  mic_reg_addr_s[`MQ_RSRV1]<=`RSP_ADDR          ;
+                  mic_bit_mode  [`MQ_RSRV1]<=`BIT_MODE_64       ;
+                  mic_immediate [`MQ_RSRV1]<=`IMM_W'(signed'(8));
                 end
                 default:begin /* Invalid */                           name<="!!!";end
               endcase
@@ -654,18 +666,18 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               // RSRV1とRSRV2でPUSH(RIP)
-              mic_opcode    [`MICRO_Q_RSRV1]<=`MICRO_ADDI         ;
-              mic_reg_addr_d[`MICRO_Q_RSRV1]<=`RSP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV1]<=`RSP_ADDR           ;
-              mic_immediate [`MICRO_Q_RSRV1]<=`IMM_W'(signed'(-8));
-              mic_bit_mode  [`MICRO_Q_RSRV1]<=`BIT_MODE_64        ;
-              mic_opcode    [`MICRO_Q_RSRV2]<=`MICRO_SQ           ;
-              mic_reg_addr_d[`MICRO_Q_RSRV2]<=`RIP_ADDR           ;
-              mic_reg_addr_s[`MICRO_Q_RSRV2]<=`RSP_ADDR           ;
+              mic_opcode    [`MQ_RSRV1]<=`MICRO_ADDI         ;
+              mic_reg_addr_d[`MQ_RSRV1]<=`RSP_ADDR           ;
+              mic_reg_addr_s[`MQ_RSRV1]<=`RSP_ADDR           ;
+              mic_immediate [`MQ_RSRV1]<=`IMM_W'(signed'(-8));
+              mic_bit_mode  [`MQ_RSRV1]<=`BIT_MODE_64        ;
+              mic_opcode    [`MQ_RSRV2]<=`MICRO_SQ           ;
+              mic_reg_addr_d[`MQ_RSRV2]<=`RIP_ADDR           ;
+              mic_reg_addr_s[`MQ_RSRV2]<=`RSP_ADDR           ;
               case (inst[5:3])
                 3'd2   :begin                                         name<="CALL";
-                  mic_opcode    [`MICRO_Q_RSRV3]<=`MICRO_JR;
-                  mic_reg_addr_d[`MICRO_Q_RSRV3]<=`TMP_ADDR;
+                  mic_opcode    [`MQ_RSRV3]<=`MICRO_JR;
+                  mic_reg_addr_d[`MQ_RSRV3]<=`TMP_ADDR;
                 end
                 3'd6   :begin                                         name<="PUSH";
                 end
@@ -680,7 +692,7 @@ module fetch_phase #(
               *
               */
               case (inst[5:3])
-                3'd0   :begin mic_opcode[`MICRO_Q_ARITH]<=`MICRO_MOVI;name<="MOV";end
+                3'd0   :begin mic_opcode[`MQ_ARITH]<=`MICRO_MOVI;name<="MOV";end
                 default:begin                                         name<="!!!";end
               endcase
             end
@@ -688,7 +700,7 @@ module fetch_phase #(
             begin
               /***********************************************************
               * We can expect that
-              * mic_opcode[`MICRO_Q_ARITH] was set a clk ago.
+              * mic_opcode[`MQ_ARITH] was set a clk ago.
               */
             end
           endcase
@@ -701,12 +713,12 @@ module fetch_phase #(
                   // Load, Storeへのsレジスタはゼロにする
                   // Xor $scl $scl $scl で実現
                   disp_byte                      <= 4;
-                  mic_opcode    [`MICRO_Q_SCALE] <=`MICRO_XOR;
-                  mic_reg_addr_d[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_s[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_t[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_s[`MICRO_Q_LOAD ] <=`SCL_ADDR;
-                  mic_reg_addr_s[`MICRO_Q_STORE] <=`SCL_ADDR;
+                  mic_opcode    [`MQ_SCALE] <=`MICRO_XOR;
+                  mic_reg_addr_d[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_s[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_t[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_s[`MQ_LOAD ] <=`SCL_ADDR;
+                  mic_reg_addr_s[`MQ_STORE] <=`SCL_ADDR;
                   state <= S_DISPLACEMENT; 
                 end
                 3'b100 :// SIB が後続する
@@ -744,10 +756,10 @@ module fetch_phase #(
               * Load, Store を Nop に置き換え、
               * メインとなる命令のオペランドを指定しなおす
               */
-              mic_opcode    [`MICRO_Q_LOAD ] <= `MICRO_NOP;
-              mic_opcode    [`MICRO_Q_STORE] <= `MICRO_NOP;
-              mic_reg_addr_d[`MICRO_Q_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
-              mic_reg_addr_s[`MICRO_Q_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
+              mic_opcode    [`MQ_LOAD ] <= `MICRO_NOP;
+              mic_opcode    [`MQ_STORE] <= `MICRO_NOP;
+              mic_reg_addr_d[`MQ_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
+              mic_reg_addr_s[`MQ_ARITH] <= `REG_ADDR_W'({rex_b,inst[2:0]});
               
               if (imm_byte==0) begin
                 state         <= S_OPCODE_1;
@@ -760,13 +772,13 @@ module fetch_phase #(
         end
         S_SIB_DEST_RM:
         begin
-          mic_opcode    [`MICRO_Q_SCALE]<=`MICRO_SLLI                   ;
-          mic_reg_addr_d[`MICRO_Q_SCALE]<=`SCL_ADDR                     ;
-          mic_reg_addr_s[`MICRO_Q_SCALE]<= mic_reg_addr_s[`MICRO_Q_LOAD];
-          mic_immediate [`MICRO_Q_SCALE]<=`IMM_W'(inst[7:6])            ;
-          mic_bit_mode  [`MICRO_Q_SCALE]<=`BIT_MODE_64                  ;
-          mic_reg_addr_s[`MICRO_Q_LOAD ]<=`SCL_ADDR                     ;
-          mic_reg_addr_s[`MICRO_Q_STORE]<=`SCL_ADDR                     ;
+          mic_opcode    [`MQ_SCALE]<=`MICRO_SLLI                   ;
+          mic_reg_addr_d[`MQ_SCALE]<=`SCL_ADDR                     ;
+          mic_reg_addr_s[`MQ_SCALE]<= mic_reg_addr_s[`MQ_LOAD];
+          mic_immediate [`MQ_SCALE]<=`IMM_W'(inst[7:6])            ;
+          mic_bit_mode  [`MQ_SCALE]<=`BIT_MODE_64                  ;
+          mic_reg_addr_s[`MQ_LOAD ]<=`SCL_ADDR                     ;
+          mic_reg_addr_s[`MQ_STORE]<=`SCL_ADDR                     ;
           
           if (disp_byte!=0) begin
             state <= S_DISPLACEMENT;
@@ -779,13 +791,13 @@ module fetch_phase #(
         end
         S_MODRM_DEST_R:
         begin
-          mic_reg_addr_d[`MICRO_Q_LOAD ]<=`TMP_ADDR                      ;
-          mic_reg_addr_s[`MICRO_Q_LOAD ]<=`REG_ADDR_W'({rex_b,inst[2:0]});
-          mic_reg_addr_d[`MICRO_Q_ARITH]<=`REG_ADDR_W'({rex_r,inst[5:3]});
-          mic_reg_addr_s[`MICRO_Q_ARITH]<=`REG_ADDR_W'({rex_r,inst[5:3]});
-          mic_reg_addr_t[`MICRO_Q_ARITH]<=`TMP_ADDR                      ;
+          mic_reg_addr_d[`MQ_LOAD ]<=`TMP_ADDR                      ;
+          mic_reg_addr_s[`MQ_LOAD ]<=`REG_ADDR_W'({rex_b,inst[2:0]});
+          mic_reg_addr_d[`MQ_ARITH]<=`REG_ADDR_W'({rex_r,inst[5:3]});
+          mic_reg_addr_s[`MQ_ARITH]<=`REG_ADDR_W'({rex_r,inst[5:3]});
+          mic_reg_addr_t[`MQ_ARITH]<=`TMP_ADDR                      ;
           
-          disp_for_whom [`MICRO_Q_LOAD ]<= 1;
+          disp_to [`MQ_LOAD ]<= 1;
           
           case (inst[7:6])
             2'b00: begin // [---]
@@ -795,11 +807,11 @@ module fetch_phase #(
                   // Loadへのsレジスタはゼロにする
                   // Xor $scl $scl $scl で実現
                   disp_byte                      <= 4;
-                  mic_opcode    [`MICRO_Q_SCALE] <=`MICRO_XOR;
-                  mic_reg_addr_d[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_s[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_t[`MICRO_Q_SCALE] <=`SCL_ADDR;
-                  mic_reg_addr_s[`MICRO_Q_LOAD ] <=`SCL_ADDR;
+                  mic_opcode    [`MQ_SCALE] <=`MICRO_XOR;
+                  mic_reg_addr_d[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_s[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_t[`MQ_SCALE] <=`SCL_ADDR;
+                  mic_reg_addr_s[`MQ_LOAD ] <=`SCL_ADDR;
                   state                          <= S_DISPLACEMENT;
                 end
                 3'b100 :// SIBが後続
@@ -832,14 +844,14 @@ module fetch_phase #(
               endcase
             end
             default: /* = 2'b11 */ begin
-              mic_opcode    [`MICRO_Q_LOAD ] <=`MICRO_NOP;
+              mic_opcode    [`MQ_LOAD ] <=`MICRO_NOP;
               case (substate_modrm_dest_r)
                 MODRM_DEST_R_LEA: begin
-                  mic_opcode    [`MICRO_Q_ARITH]<=`MICRO_MOVI;
-                  mic_immediate [`MICRO_Q_ARITH]<=`IMM_W'({rex_b,inst[2:0]});
+                  mic_opcode    [`MQ_ARITH]<=`MICRO_MOVI;
+                  mic_immediate [`MQ_ARITH]<=`IMM_W'({rex_b,inst[2:0]});
                 end
                 default: begin
-                  mic_reg_addr_t[`MICRO_Q_ARITH]<=`REG_ADDR_W'({rex_b,inst[2:0]});
+                  mic_reg_addr_t[`MQ_ARITH]<=`REG_ADDR_W'({rex_b,inst[2:0]});
                 end
               endcase
               if (imm_byte==0) begin
@@ -853,12 +865,12 @@ module fetch_phase #(
         end
         S_SIB_DEST_R:
         begin
-          mic_opcode    [`MICRO_Q_SCALE]<=`MICRO_SLLI                   ;
-          mic_reg_addr_d[`MICRO_Q_SCALE]<=`SCL_ADDR                     ;
-          mic_reg_addr_s[`MICRO_Q_SCALE]<= mic_reg_addr_s[`MICRO_Q_LOAD];
-          mic_immediate [`MICRO_Q_SCALE]<=`IMM_W'(inst[7:6])            ;
-          mic_bit_mode  [`MICRO_Q_SCALE]<=`BIT_MODE_64                  ;
-          mic_reg_addr_s[`MICRO_Q_LOAD ]<=`SCL_ADDR                     ;
+          mic_opcode    [`MQ_SCALE]<=`MICRO_SLLI                   ;
+          mic_reg_addr_d[`MQ_SCALE]<=`SCL_ADDR                     ;
+          mic_reg_addr_s[`MQ_SCALE]<= mic_reg_addr_s[`MQ_LOAD];
+          mic_immediate [`MQ_SCALE]<=`IMM_W'(inst[7:6])            ;
+          mic_bit_mode  [`MQ_SCALE]<=`BIT_MODE_64                  ;
+          mic_reg_addr_s[`MQ_LOAD ]<=`SCL_ADDR                     ;
           if (disp_byte!=0) begin
             state <= S_DISPLACEMENT;
           end else if (imm_byte!=0) begin
@@ -878,9 +890,9 @@ module fetch_phase #(
             mic_inst_valid <= 1;
           end
           
-          for (i=0;i<`MICRO_Q_N;i=i+1)
+          for (i=0;i<`MQ_N;i=i+1)
           begin
-            if (imm_for_whom[i])
+            if (imm_to[i])
             begin
               case (imm_cnt)
                 2'd0: begin
@@ -928,9 +940,9 @@ module fetch_phase #(
             end         
           end
           
-          for (i=0;i<`MICRO_Q_N;i=i+1)
+          for (i=0;i<`MQ_N;i=i+1)
           begin
-            if (disp_for_whom[i])
+            if (disp_to[i])
             begin
               case (disp_cnt)
                 2'd0: begin

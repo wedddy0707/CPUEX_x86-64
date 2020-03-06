@@ -1,5 +1,12 @@
 `include "common_params.h"
 
+typedef logic [`INST_W    -1:0] inst_t;
+typedef logic [`IMM_W     -1:0] imm_t ;
+typedef logic [`ADDR_W    -1:0] addr_t;
+typedef logic [`NAME_W    -1:0] name_t;
+typedef logic [`REG_ADDR_W-1:0] rega_t;
+typedef logic [            3:0] rex_t ;
+
 typedef enum {
   MIOP_ADD ,
   MIOP_SUB ,
@@ -63,12 +70,6 @@ typedef enum {
   MIOP_S
 } miop_t;
 
-typedef logic [`INST_W    -1:0] inst_t;
-typedef logic [`IMM_W     -1:0] imm_t ;
-typedef logic [`ADDR_W    -1:0] addr_t;
-typedef logic [`NAME_W    -1:0] name_t;
-typedef logic [`REG_ADDR_W-1:0] rega_t;
-typedef logic [            3:0] rex_t ;
 
 typedef enum logic[1:0] {
   BMD_08,
@@ -85,7 +86,6 @@ typedef struct packed {
   imm_t  imm   ;
   bmd_t  bmd   ;
   addr_t pc    ;
-  name_t name  ;// just for debug.
 } miinst_t;
 
 // In Fetch Phase
