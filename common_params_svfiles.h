@@ -124,27 +124,9 @@ typedef enum {
 } fsubst_grp;
 
 typedef struct packed {
-  name_t     name; // デバッグ用
   fsubst_obj  obj; // 対象
   fsubst_dst  dst; // デスティネーション
   fsubst_grp  grp; // グループ
-
-  struct packed {
-    logic w;
-    logic r;
-    logic x;
-    logic b;
-  } rex;
-
-  struct packed {
-    logic [      2:0] byte;
-    logic [`MQ_N-1:0] to;
-  } imm;
-  
-  struct packed {
-    logic [      2:0] byte;
-    logic [`MQ_N-1:0] to;
-  } disp;
 } fstate;
 
 // For Register Usage Table
