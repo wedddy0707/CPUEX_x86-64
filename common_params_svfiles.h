@@ -90,40 +90,83 @@ typedef struct packed {
 
 // In Fetch Phase
 typedef enum {
-  S_IGNORE_MEANGLESS_ADD_1, // SはStateのS
-  S_IGNORE_MEANGLESS_ADD_2,
-  S_OPCODE_1,
-  S_OPCODE_2,
-  S_OPCODE_3,
-  S_MODRM,
-  S_SIB,
-  S_DISPLACEMENT,
-  S_IMMEDIATE
-} fstate;
+  IGNORE_MEANGLESS_ADD_1,
+  IGNORE_MEANGLESS_ADD_2,
+  OPCODE_1,
+  OPCODE_2,
+  OPCODE_3,
+  MODRM,
+  SIB,
+  DISPLACEMENT,
+  IMMEDIATE
+} fsubst_obj;
 
 typedef enum {
-  MODRM_DEST_RM_GRP_1,
-  MODRM_DEST_RM_GRP_1A,
-  MODRM_DEST_RM_GRP_2,
-  MODRM_DEST_RM_GRP_3,
-  MODRM_DEST_RM_GRP_4,
-  MODRM_DEST_RM_GRP_5,
-  MODRM_DEST_RM_GRP_6,
-  MODRM_DEST_RM_GRP_7,
-  MODRM_DEST_RM_GRP_8,
-  MODRM_DEST_RM_GRP_9,
-  MODRM_DEST_RM_GRP_10,
-  MODRM_DEST_RM_GRP_11,
-  MODRM_DEST_RM_DEFAULT,
-  MODRM_DEST_R_DEFAULT,
-  SIB_DEST_RM,
-  SIB_DEST_R,
-  DISPLACEMENT_1,
-  DISPLACEMENT_2,
-  DISPLACEMENT_3,
-  DISPLACEMENT_4,
-  IMMEDIATE_1,
-  IMMEDIATE_2,
-  IMMEDIATE_3,
-  IMMEDIATE_4
-} fsubst;
+  DST_RM,
+  DST_R
+} fsubst_dst;
+
+typedef enum {
+  GRP_0, //どのグループにも属さないということ. 
+  GRP_1,
+  GRP_1A,
+  GRP_2,
+  GRP_3,
+  GRP_4,
+  GRP_5,
+  GRP_6,
+  GRP_7,
+  GRP_8,
+  GRP_9,
+  GRP_10,
+  GRP_11,
+  GRP_LEA
+} fsubst_grp;
+
+typedef struct packed {
+  name_t     name; // デバッグ用
+  fsubst_obj  obj; // 対象
+  fsubst_dst  dst; // デスティネーション
+  fsubst_grp  grp; // グループ
+
+  struct packed {
+    logic w;
+    logic r;
+    logic x;
+    logic b;
+  } rex;
+
+  struct packed {
+    logic [      2:0] byte;
+    logic [`MQ_N-1:0] to;
+  } imm;
+  
+  struct packed {
+    logic [      2:0] byte;
+    logic [`MQ_N-1:0] to;
+  } disp;
+} fstate;
+
+// For Register Usage Table
+typedef struct packed {
+  logic from_gd;
+  logic from_fd;
+  logic   to_gd;
+  logic   to_fd;
+  logic from_gs;
+  logic from_fs;
+  logic from_gt;
+  logic from_ft;
+  logic from_ef;
+  logic   to_ef;
+  rega_t      d;
+  rega_t      s;
+  rega_t      t;
+} rut_t;
+
+// For Forward
+typedef struct packed {
+  logic d;
+  logic s;
+  logic t;
+} fwd_t;

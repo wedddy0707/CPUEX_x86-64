@@ -2,17 +2,8 @@
 `include "common_params.h"
 
 module register_usage_table (
-  input  wire [`OPCODE_W-1:0] opcode,
-  output wire d_from_gpr,
-  output wire d_from_fpr,
-  output wire d_to_gpr,
-  output wire d_to_fpr,
-  output wire s_from_gpr,
-  output wire s_from_fpr,
-  output wire t_from_gpr,
-  output wire t_from_fpr,
-  output wire   to_eflags,
-  output wire from_eflags
+  input  miinst_t miinst,
+  output    rut_t rut
 );
   localparam from_gd = 10'b1000000000;
   localparam from_fd = 10'b0100000000;
@@ -26,78 +17,73 @@ module register_usage_table (
   localparam   to_ef = 10'b0000000001;
   localparam nothing = 10'b0000000000;
 
-  wire [9:0] select =
-    (opcode==`MICRO_NOP  ) ?                             nothing :
-    (opcode==`MICRO_ADD  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_SUB  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_ADC  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_SBB  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_MUL  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_DIV  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_AND  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_OR   ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_XOR  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_SLL  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_SRL  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_SRA  ) ?   to_gd | gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_ADDI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SUBI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_ADCI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SBBI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_MULI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_DIVI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_ANDI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_ORI  ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_XORI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SLLI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SRLI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SRAI ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_LB   ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_LW   ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_LD   ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_LQ   ) ?   to_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SB   ) ? from_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SW   ) ? from_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SD   ) ? from_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_SQ   ) ? from_gd | gs      | from_ef | to_ef :
-    (opcode==`MICRO_J    ) ?                             nothing :
-    (opcode==`MICRO_JR   ) ? from_gd                             :
-    (opcode==`MICRO_JA   ) ?                     from_ef         :
-    (opcode==`MICRO_JAE  ) ?                     from_ef         :
-    (opcode==`MICRO_JB   ) ?                     from_ef         :
-    (opcode==`MICRO_JBE  ) ?                     from_ef         :
-    (opcode==`MICRO_JC   ) ?                     from_ef         :
-    (opcode==`MICRO_JE   ) ?                     from_ef         :
-    (opcode==`MICRO_JG   ) ?                     from_ef         :
-    (opcode==`MICRO_JGE  ) ?                     from_ef         :
-    (opcode==`MICRO_JL   ) ?                     from_ef         :
-    (opcode==`MICRO_JLE  ) ?                     from_ef         :
-    (opcode==`MICRO_JO   ) ?                     from_ef         :
-    (opcode==`MICRO_JP   ) ?                     from_ef         :
-    (opcode==`MICRO_JS   ) ?                     from_ef         :
-    (opcode==`MICRO_JNE  ) ?                     from_ef         :
-    (opcode==`MICRO_JNP  ) ?                     from_ef         :
-    (opcode==`MICRO_JNS  ) ?                     from_ef         :
-    (opcode==`MICRO_JNO  ) ?                     from_ef         :
-    (opcode==`MICRO_JCX  ) ?                     from_ef         :
-    (opcode==`MICRO_MOV  ) ?   to_gd |      gt                   :
-    (opcode==`MICRO_MOVI ) ?   to_gd                             :
-    (opcode==`MICRO_CMP  ) ?           gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_CMPI ) ?                gt | from_ef | to_ef :
-    (opcode==`MICRO_TEST ) ?           gs | gt | from_ef | to_ef :
-    (opcode==`MICRO_TESTI) ?                gt | from_ef | to_ef : nothing;
-
+  assign {rut.d,rut.s,rut.t} = {miinst.d,miinst.s,miinst.t};
   assign {
-    d_from_gpr,
-    d_from_fpr,
-    d_to_gpr,
-    d_to_fpr,
-    s_from_gpr,
-    s_from_fpr,
-    t_from_gpr,
-    t_from_fpr,
-    from_eflags,
-    to_eflags } = select;
+    rut.from_gd,
+    rut.from_fd,
+    rut.to_gd,
+    rut.to_fd,
+    rut.from_gs,
+    rut.from_fs,
+    rut.from_gt,
+    rut.from_ft,
+    rut.from_ef,
+    rut.to_ef
+  } =
+    (miinst.opcode==MIOP_NOP  ) ?                             nothing :
+    (miinst.opcode==MIOP_ADD  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_SUB  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_ADC  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_SBB  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_MUL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_DIV  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_AND  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_OR   ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_XOR  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_SLL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_SRL  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_SRA  ) ?   to_gd | gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_ADDI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_SUBI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_ADCI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_SBBI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_MULI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_DIVI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_ANDI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_ORI  ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_XORI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_SLLI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_SRLI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_SRAI ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_L    ) ?   to_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_S    ) ? from_gd | gs      | from_ef | to_ef :
+    (miinst.opcode==MIOP_J    ) ?                             nothing :
+    (miinst.opcode==MIOP_JR   ) ? from_gd                             :
+    (miinst.opcode==MIOP_JA   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JAE  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JB   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JBE  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JC   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JE   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JG   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JGE  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JL   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JLE  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JO   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JP   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JS   ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JNE  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JNP  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JNS  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JNO  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_JCX  ) ?                     from_ef         :
+    (miinst.opcode==MIOP_MOV  ) ?   to_gd |      gt                   :
+    (miinst.opcode==MIOP_MOVI ) ?   to_gd                             :
+    (miinst.opcode==MIOP_CMP  ) ?           gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_CMPI ) ?                gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_TEST ) ?           gs | gt | from_ef | to_ef :
+    (miinst.opcode==MIOP_TESTI) ?                gt | from_ef | to_ef : nothing;
+
 endmodule
 
 module instruction_name_by_ascii (

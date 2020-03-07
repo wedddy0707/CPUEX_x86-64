@@ -1,138 +1,42 @@
 `default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module forward_control #(
-  parameter EW_LAYER = 1
+  parameter POST_DEC_LD = 3 // POST-DECode-phase Layer Depthのつもり
 )(
-  input  wire [`OPCODE_W  -1:0] dec_opcode              ,
-  input  wire [`REG_ADDR_W-1:0] dec_rd_addr             ,
-  input  wire [`REG_ADDR_W-1:0] dec_rs_addr             ,
-  input  wire [`REG_ADDR_W-1:0] dec_rt_addr             ,
-  input  wire [`OPCODE_W  -1:0] exe_opcode              ,
-  input  wire [`REG_ADDR_W-1:0] exe_rd_addr             ,
-  input  wire [`OPCODE_W  -1:0] wri_opcode  [EW_LAYER:0],
-  input  wire [`REG_ADDR_W-1:0] wri_rd_addr [EW_LAYER:0],
-  output wire                   forward_to_d_from_exe   ,
-  output wire                   forward_to_s_from_exe   ,
-  output wire                   forward_to_t_from_exe   ,
-  output wire [EW_LAYER     :0] forward_to_d_from_wri   ,
-  output wire [EW_LAYER     :0] forward_to_s_from_wri   ,
-  output wire [EW_LAYER     :0] forward_to_t_from_wri   //
+  input  miinst_t      dec_miinst                 ,
+  input  miinst_t post_dec_miinst[POST_DEC_LD-1:0],
+  output    fwd_t    forward_from[POST_DEC_LD-1:0] 
 );
-  localparam EL = EW_LAYER;
+  localparam LD = POST_DEC_LD;
 
-  wire        dec_from_gd, dec_from_fd;
-  wire        dec_from_gs, dec_from_fs;
-  wire        dec_from_gt, dec_from_ft;
-  wire        exe_to_gd,   exe_to_fd;
-  wire        dec_to_gd,   dec_to_fd;
-  wire [EL:0] wri_to_gd,   wri_to_fd;
+  rut_t dec_rut;
+  rut_t pos_rut[LD-1:0];
 
   register_usage_table rut_dec (
-    .opcode     (dec_opcode),
-    .d_from_gpr (dec_from_gd),
-    .d_from_fpr (dec_from_fd),
-    .s_from_gpr (dec_from_gs),
-    .s_from_fpr (dec_from_fs),
-    .t_from_gpr (dec_from_gt),
-    .t_from_fpr (dec_from_ft)
-  );
-
-  register_usage_table rut_exe (
-    .opcode   (exe_opcode),
-    .d_to_gpr (exe_to_gd),
-    .d_to_fpr (exe_to_fd)
-  );
-
-  forward_necessity fn_exe_d (
-    .target_reg_addr  (dec_rd_addr),
-    .target_from_g    (dec_from_gd),
-    .target_from_f    (dec_from_fd),
-    .source_reg_addr  (exe_rd_addr),
-    .source_to_g      (exe_to_gd),
-    .source_to_f      (exe_to_fd),
-    .forward          (forward_to_d_from_exe)
+    .miinst(dec_miinst),
+    .rut   (dec_rut)
   );
   
-  forward_necessity fn_exe_s (
-    .target_reg_addr  (dec_rs_addr),
-    .target_from_g    (dec_from_gs),
-    .target_from_f    (dec_from_fs),
-    .source_reg_addr  (exe_rd_addr),
-    .source_to_g      (exe_to_gd),
-    .source_to_f      (exe_to_fd),
-    .forward          (forward_to_s_from_exe)
-  );
-  
-  forward_necessity fn_exe_t (
-    .target_reg_addr  (dec_rt_addr),
-    .target_from_g    (dec_from_gt),
-    .target_from_f    (dec_from_ft),
-    .source_reg_addr  (exe_rd_addr),
-    .source_to_g      (exe_to_gd),
-    .source_to_f      (exe_to_fd),
-    .forward          (forward_to_t_from_exe)
-  );
-  
-  genvar a,b,c,d;
+  genvar i;
   generate
-  for(a=0;a<EL+1;a=a+1) begin: gen_table
+  for(i=0;i<LD;i=i+1) begin: gen_table
     register_usage_table rut_wri (
-      .opcode   (wri_opcode[a]),
-      .d_to_gpr (wri_to_gd [a]),
-      .d_to_fpr (wri_to_fd [a])
+      .miinst(post_dec_miinst[i]),
+      .rut   (pos_rut[i])
     );
   end
-  for(b=0;b<EL+1;b=b+1) begin: gen_d
-    forward_necessity fn_wri_d (
-      .target_reg_addr  (dec_rd_addr),
-      .target_from_g    (dec_from_gd),
-      .target_from_f    (dec_from_fd),
-      .source_reg_addr  (wri_rd_addr[b]),
-      .source_to_g      (wri_to_gd  [b]),
-      .source_to_f      (wri_to_fd  [b]),
-      .forward          (forward_to_d_from_wri[b])
-    );
+  for(i=0;i<LD;i=i+1) begin: gen_d
+    assign forward_from[i].d=(dec_rut.d==pos_rut[i].d)&((dec_rut.from_gd&pos_rut[i].to_gd)|(dec_rut.from_fd&pos_rut[i].to_fd));
   end
-  for(c=0;c<EL+1;c=c+1) begin: gen_s
-    forward_necessity fn_wri_s (
-      .target_reg_addr  (dec_rs_addr),
-      .target_from_g    (dec_from_gs),
-      .target_from_f    (dec_from_fs),
-      .source_reg_addr  (wri_rd_addr[c]),
-      .source_to_g      (wri_to_gd  [c]),
-      .source_to_f      (wri_to_fd  [c]),
-      .forward          (forward_to_s_from_wri[c])
-    );
+  for(i=0;i<LD;i=i+1) begin: gen_s
+    assign forward_from[i].s=(dec_rut.s==pos_rut[i].d)&((dec_rut.from_gs&pos_rut[i].to_gd)|(dec_rut.from_fs&pos_rut[i].to_fd));
   end
-  for(d=0;d<EL+1;d=d+1) begin: gen_t
-    forward_necessity fn_wri_t (
-      .target_reg_addr  (dec_rt_addr),
-      .target_from_g    (dec_from_gt),
-      .target_from_f    (dec_from_ft),
-      .source_reg_addr  (wri_rd_addr[d]),
-      .source_to_g      (wri_to_gd  [d]),
-      .source_to_f      (wri_to_fd  [d]),
-      .forward          (forward_to_t_from_wri[d])
-    );
+  for(i=0;i<LD;i=i+1) begin: gen_t
+    assign forward_from[i].t=(dec_rut.t==pos_rut[i].d)&((dec_rut.from_gt&pos_rut[i].to_gd)|(dec_rut.from_ft&pos_rut[i].to_fd));
   end
   endgenerate
 endmodule
-
-module forward_necessity (
-  input  wire [`REG_ADDR_W-1:0] target_reg_addr,
-  input  wire                   target_from_g,
-  input  wire                   target_from_f,
-  input  wire [`REG_ADDR_W-1:0] source_reg_addr,
-  input  wire                   source_to_g,
-  input  wire                   source_to_f,
-  output wire                   forward
-);
-  assign forward =
-    (target_reg_addr==source_reg_addr) &
-    ((target_from_g&source_to_g)|(target_from_f&source_to_f));
-endmodule
-
-
 
 `default_nettype wire

@@ -1,185 +1,90 @@
 `default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module decode_phase #(
-  parameter EW_LAYER = 1
+  parameter POST_DEC_LD = 3
 ) (
-  input wire [`MICRO_W   -1:0] deq_opcode_head      ,
-  input wire [`REG_ADDR_W-1:0] deq_reg_addr_d_head  ,
-  input wire [`REG_ADDR_W-1:0] deq_reg_addr_s_head  ,
-  input wire [`REG_ADDR_W-1:0] deq_reg_addr_t_head  ,
-  input wire [`IMM_W     -1:0] deq_immediate_head   ,
-  input wire [`BIT_MODE_W-1:0] deq_bit_mode_head    ,
-  input wire                   deq_efl_mode_head    ,
-  input wire [`ADDR_W    -1:0] deq_pc_head          ,
-  output reg [`MICRO_W   -1:0] de_opcode            ,
-  output reg [`REG_ADDR_W-1:0] de_reg_addr_d        ,
-  output reg [`REG_ADDR_W-1:0] de_reg_addr_s        ,
-  output reg [`REG_ADDR_W-1:0] de_reg_addr_t        ,
-  output reg [`REG_W     -1:0] de_d                 ,
-  output reg [`REG_W     -1:0] de_s                 ,
-  output reg [`REG_W     -1:0] de_t                 ,
-  output reg [`IMM_W     -1:0] de_immediate         ,
-  output reg [`BIT_MODE_W-1:0] de_bit_mode          ,
-  output reg                   de_efl_mode          ,
-  output reg [`ADDR_W    -1:0] de_pc                ,
-  input wire [`REG_W     -1:0] gpr [`REG_N-1:0]     ,
-  input wire                   forward_to_d_from_exe,
-  input wire                   forward_to_s_from_exe,
-  input wire                   forward_to_t_from_exe,
-  input wire [EW_LAYER     :0] forward_to_d_from_wri,
-  input wire [EW_LAYER     :0] forward_to_s_from_wri,
-  input wire [EW_LAYER     :0] forward_to_t_from_wri,
-  input wire [`REG_W     -1:0] exe_d                ,
-  input wire [`REG_W     -1:0] wri_d[EW_LAYER:0]    ,
-  input wire                   stall                ,
-  input wire                   flush                ,
-  input wire                   clk                  ,
-  input wire                   rstn
+  input  miinst_t deq_miinst_head              ,
+  output miinst_t de_miinst                    ,
+  output reg_t    de_d                         ,
+  output reg_t    de_s                         ,
+  output reg_t    de_t                         ,
+  input  reg_t    gpr         [`REG_N     -1:0],
+  input  fws_t    fwd_sig_from[POST_DEC_LD-1:0],
+  input  reg_t    fwd_val_from[POST_DEC_LD-1:0],
+  input  logic    stall                        ,
+  input  logic    flush                        ,
+  input  logic    clk                          ,
+  input  logic    rstn
 );
   wire [`REG_W-1:0] dec_d;
   wire [`REG_W-1:0] dec_s;
   wire [`REG_W-1:0] dec_t;
 
+  miint_t nop;
+  assign nop.opcode = MIOP_NOP;
+
   always @(posedge clk) begin
-    de_opcode     <=~rstn ? 0:flush ? 0:stall ? 0 :deq_opcode_head    ;
-    de_reg_addr_d <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_d_head;
-    de_reg_addr_s <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_s_head;
-    de_reg_addr_t <=~rstn ? 0:flush ? 0:stall ? 0 :deq_reg_addr_t_head;
-    de_immediate  <=~rstn ? 0:flush ? 0:stall ? 0 :deq_immediate_head ;
-    de_bit_mode   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_bit_mode_head  ;
-    de_efl_mode   <=~rstn ? 0:flush ? 0:stall ? 0 :deq_efl_mode_head  ;
-    de_pc         <=~rstn ? 0:flush ? 0:stall ? 0 :deq_pc_head        ;
-    de_d          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_d              ;
-    de_s          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_s              ;
-    de_t          <=~rstn ? 0:flush ? 0:stall ? 0 :dec_t              ;
+    de_miinst <= (~rstn|flush|stall) ? nop:deq_miinst_head;
+    de_d      <= (~rstn|flush|stall) ?   0:dec_d;
+    de_s      <= (~rstn|flush|stall) ?   0:dec_s;
+    de_t      <= (~rstn|flush|stall) ?   0:dec_t;
   end
   
   decode_phase_value_decision #(
     EW_LAYER
   ) decode_phase_value_decision_1 (
-    .opcode               (deq_opcode_head      ),
-    .reg_addr_d           (deq_reg_addr_d_head  ),
-    .reg_addr_s           (deq_reg_addr_s_head  ),
-    .reg_addr_t           (deq_reg_addr_t_head  ),
-    .gpr                  (gpr                  ),
-    .forward_to_d_from_exe(forward_to_d_from_exe),
-    .forward_to_s_from_exe(forward_to_s_from_exe),
-    .forward_to_t_from_exe(forward_to_t_from_exe),
-    .forward_to_d_from_wri(forward_to_d_from_wri),
-    .forward_to_s_from_wri(forward_to_s_from_wri),
-    .forward_to_t_from_wri(forward_to_t_from_wri),
-    .exe_d                (exe_d                ),
-    .wri_d                (wri_d                ),
-    .d                    (dec_d                ),
-    .s                    (dec_s                ),
-    .t                    (dec_t                )
+    .miinst      (deq_miinst_head),
+    .gpr         (gpr            ),
+    .fwd_sig_from(fwd_sig_from   ),
+    .fwd_val_from(fwd_val_from   ),
+    .d           (dec_d          ),
+    .s           (dec_s          ),
+    .t           (dec_t          )
   );
 endmodule
 
 
 module decode_phase_value_decision #(
-  parameter EW_LAYER = 1
+  parameter POST_DEC_LD = 3
 ) (
-  input  wire [`OPCODE_W   -1:0] opcode               ,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_d           ,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_s           ,
-  input  wire [`REG_ADDR_W -1:0] reg_addr_t           ,
-  input  wire [`REG_W      -1:0] gpr      [`REG_N-1:0],
-  input  wire                    forward_to_d_from_exe,
-  input  wire                    forward_to_s_from_exe,
-  input  wire                    forward_to_t_from_exe,
-  input  wire [EW_LAYER      :0] forward_to_d_from_wri,
-  input  wire [EW_LAYER      :0] forward_to_s_from_wri,
-  input  wire [EW_LAYER      :0] forward_to_t_from_wri,
-  input  wire [`REG_W      -1:0] exe_d                ,
-  input  wire [`REG_W      -1:0] wri_d    [EW_LAYER:0],
-  output wire [`REG_W      -1:0] d                    ,
-  output wire [`REG_W      -1:0] s                    ,
-  output wire [`REG_W      -1:0] t
+  input  miinst_t miinst                       ,
+  input  reg_t    gpr         [`REG_N     -1:0],
+  input  fwd_t    fwd_sig_from[POST_DEC_LD-1:0],
+  input  reg_t    fwd_val_from[POST_DEC_LD-1:0],
+  output reg_t    d                            ,
+  output reg_t    s                            ,
+  output reg_t    t
 );
-  wire d_from_fpr, s_from_fpr, t_from_fpr;
+  localparam LD = POST_DEC_LD;
+  reg_t val_iter_d [LD:0];
+  reg_t val_iter_s [LD:0];
+  reg_t val_iter_t [LD:0];
 
-  register_usage_table register_usage_table_1 (
-    .opcode     (opcode),
-    .d_from_fpr (d_from_fpr),
-    .s_from_fpr (s_from_fpr),
-    .t_from_fpr (t_from_fpr)
-  );
-
-  one_val_decision #(
-    EW_LAYER
-  ) one_val_decision_for_d (
-    .reg_val         (gpr[reg_addr_d]),
-    .forward_from_exe(forward_to_d_from_exe),
-    .forward_from_wri(forward_to_d_from_wri),
-    .exe_d           (exe_d),
-    .wri_d           (wri_d),
-    .source_val      (d)
-  );
-  
-  one_val_decision #(
-    EW_LAYER
-  ) one_val_decision_for_s (
-    .reg_val         (gpr[reg_addr_s]),
-    .forward_from_exe(forward_to_s_from_exe),
-    .forward_from_wri(forward_to_s_from_wri),
-    .exe_d           (exe_d),
-    .wri_d           (wri_d),
-    .source_val      (s)
-  );
-
-  one_val_decision #(
-    EW_LAYER
-  ) one_val_decision_for_t (
-    .reg_val         (gpr[reg_addr_t]),
-    .forward_from_exe(forward_to_t_from_exe),
-    .forward_from_wri(forward_to_t_from_wri),
-    .exe_d           (exe_d),
-    .wri_d           (wri_d),
-    .source_val      (t)
-  );
-endmodule
-
-module one_val_decision #(
-  parameter EW_LAYER = 1
-) (
-  input  wire [`REG_W  -1:0] reg_val,
-  input  wire                forward_from_exe,
-  input  wire [EW_LAYER  :0] forward_from_wri,
-  input  wire [`REG_W  -1:0] exe_d,
-  input  wire [`REG_W  -1:0] wri_d[EW_LAYER:0],
-  output wire [`REG_W  -1:0] source_val
-);
-  /************************************************
-  * かなり読みづらくなっていますが,
-  *
-  * assign source_val =
-  *   (forward_from_exe    ) ? exe_d     :
-  *   (forward_from_wri[ 0]) ? wri_d[ 0] :
-  *   (forward_from_wri[ 1]) ? wri_d[ 1] :
-  *     .         .         .
-  *     .         .         .
-  *     .         .         .
-  *   (forward_from_wri[EL]) ? wri_d[EL] : reg_val;
-  *
-  * という式を ELに関して一般化したものです.
-  *
-  */
-  localparam EL = EW_LAYER;
+  assign val_iter_d[LD] = gpr[miinst.d];
+  assign val_iter_s[LD] = gpr[miinst.s];
+  assign val_iter_t[LD] = gpr[miinst.t];
   genvar i;
-
-  wire [`REG_W-1:0] val_iter[EL:0];
-
-  assign val_iter[EL] =(forward_from_wri[EL]) ? wri_d[EL] : reg_val;
-
   generate
-  for(i=EL-1;i>=0;i=i-1) begin: hoge
-    assign val_iter[i] = (forward_from_wri[i]) ? wri_d[i] : val_iter[i+1];
+  begin
+    for(i=LD-1;i>=0;i=i-1) begin: iter_d
+      assign val_iter_d[i] = (fwd_sig_from[i].d) ? fwd_val_from[i] : val_iter[i+1];
+    end
+    for(i=LD-1;i>=0;i=i-1) begin: iter_s
+      assign val_iter_s[i] = (fwd_sig_from[i].s) ? fwd_val_from[i] : val_iter[i+1];
+    end
+    for(i=LD-1;i>=0;i=i-1) begin: iter_t
+      assign val_iter_t[i] = (fwd_sig_from[i].t) ? fwd_val_from[i] : val_iter[i+1];
+    end
   end
   endgenerate
 
-  assign source_val = (forward_from_exe) ? exe_d : val_iter[0];
+  assign d = (miinst.d==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_d[0];
+  assign s = (miinst.s==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_s[0];
+  assign t = (miinst.t==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_t[0];
+
 endmodule
+
 
 `default_nettype wire
