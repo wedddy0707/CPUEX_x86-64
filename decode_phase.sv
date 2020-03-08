@@ -6,10 +6,7 @@ module decode_phase #(
   parameter POST_DEC_LD = 3
 ) (
   input  miinst_t deq_miinst_head              ,
-  output miinst_t de_miinst                    ,
-  output reg_t    de_d                         ,
-  output reg_t    de_s                         ,
-  output reg_t    de_t                         ,
+  output de_reg_t de_reg                       ,
   input  reg_t    gpr         [`REG_N     -1:0],
   input  fws_t    fwd_sig_from[POST_DEC_LD-1:0],
   input  reg_t    fwd_val_from[POST_DEC_LD-1:0],
@@ -23,13 +20,13 @@ module decode_phase #(
   wire [`REG_W-1:0] dec_t;
 
   miint_t nop;
-  assign nop.opcode = MIOP_NOP;
+  assign  nop.opcode = MIOP_NOP;
 
   always @(posedge clk) begin
-    de_miinst <= (~rstn|flush|stall) ? nop:deq_miinst_head;
-    de_d      <= (~rstn|flush|stall) ?   0:dec_d;
-    de_s      <= (~rstn|flush|stall) ?   0:dec_s;
-    de_t      <= (~rstn|flush|stall) ?   0:dec_t;
+    de_reg.miinst <= (~rstn|flush|stall) ? nop:deq_miinst_head;
+    de_reg.d      <= (~rstn|flush|stall) ?   0:dec_d;
+    de_reg.s      <= (~rstn|flush|stall) ?   0:dec_s;
+    de_reg.t      <= (~rstn|flush|stall) ?   0:dec_t;
   end
   
   decode_phase_value_decision #(

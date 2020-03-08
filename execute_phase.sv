@@ -1,176 +1,189 @@
 `default_nettype none
 `include "common_params.h"
 
-module execute_phase (
-  input wire [`OPCODE_W  -1:0] de_opcode        ,
-  input wire [`REG_ADDR_W-1:0] de_reg_addr_d    ,
-  input wire [`REG_W     -1:0] de_d             ,
-  input wire [`REG_W     -1:0] de_s             ,
-  input wire [`REG_W     -1:0] de_t             ,
-  input wire [`IMM_W     -1:0] de_immediate     ,
-  input wire [`DISP_W    -1:0] de_displacement  ,
-  input wire [`BIT_MODE_W-1:0] de_bit_mode      ,
-  input wire                   de_efl_mode      ,
-  input wire [`ADDR_W    -1:0] de_pc            ,
-  input wire [`REG_W     -1:0] gpr  [`REG_N-1:0],
-  output reg [`REG_W     -1:0] exe_d            ,
-  output reg [`ADDR_W    -1:0] exe_bd           ,
-  output reg                   exe_be           ,
-  output reg                   exe_eflags_update,
-  output reg [`REG_W     -1:0] exe_eflags       ,
-  output reg [`OPCODE_W  -1:0] ew_opcode        ,
-  output reg [`REG_ADDR_W-1:0] ew_reg_addr_d    ,
-  output reg [`REG_W     -1:0] ew_d             ,
-  output reg [            2:0] ew_ld_offset     ,
-  output reg [`ADDR_W    -1:0] mem_addr         ,
-  output reg [`REG_W     -1:0] st_data          ,
-  output reg [`DATA_W/8  -1:0] we               ,
-  input wire                   clk              ,
-  input wire                   rstn
+module execute_phase #(
+  parameter LOAD_LATENCY = 1,
+  parameter POST_DEC_LD  = 3
+) (
+  input  de_reg_t de_reg                     ,
+  input     reg_t gpr[`REG_N-1:0]            ,
+  output ew_reg_t ew_reg                     ,
+  output ew_sig_t ew_sig                     ,
+  output miinst_t pos_miinst[POST_DEC_LD-1:0],
+  output    reg_t pos_d     [POST_DEC_LD-1:0],
+  output   addr_t mem_addr                   ,
+  output    reg_t st_data                    ,
+  output    logic we                         ,
+  input     reg_t ld_data                    ,
+  input     logic clk                        ,
+  input     logic rstn                       //
 );
-  wire [5*8-1:0] name;
-  //wire [`REG_W-1:0] exe_d;
+  localparam LL   = LOAD_LATENCY ;
+  localparam LD   = POST_DEC_LD  ;
+  localparam EQ_N = POST_DEC_LD-1;
 
-  // for debug;
-  instruction_name_by_ascii inba_1 (
-    .opcode(de_opcode),
-    .name  (name)
-  );
+  miinst_t    exq_miinst[EQ_N-1:0];
+  reg_t       exq_d     [EQ_N-1:0];
+  logic [2:0] exq_ld_offset;
 
+  assign pos_miinst[0]      = de_reg.miinst;
+  assign pos_d     [0]      = ew_sig.d     ;
+  assign pos_miinst[LD-1:1] = exq_miinst   ;
+  assign pos_miinst[LD-1:1] = exq_d        ;
+  
+  reg_t ld_data_to_write =
+    (exq_ld_offset[LL-1]==3'd0) ? reg_t'(ld_data[`REG_W-1: 0]):
+    (exq_ld_offset[LL-1]==3'd1) ? reg_t'(ld_data[`REG_W-1: 8]):
+    (exq_ld_offset[LL-1]==3'd2) ? reg_t'(ld_data[`REG_W-1:16]):
+    (exq_ld_offset[LL-1]==3'd3) ? reg_t'(ld_data[`REG_W-1:24]):
+    (exq_ld_offset[LL-1]==3'd4) ? reg_t'(ld_data[`REG_W-1:32]):
+    (exq_ld_offset[LL-1]==3'd5) ? reg_t'(ld_data[`REG_W-1:40]):
+    (exq_ld_offset[LL-1]==3'd6) ? reg_t'(ld_data[`REG_W-1:48]):
+                                  reg_t'(ld_data[`REG_W-1:56]);
 
+  integer i;
   always @(posedge clk) begin
-    ew_d          <= ~rstn ? 0 : exe_d;
-    ew_opcode     <= ~rstn ? 0 : de_opcode;
-    ew_reg_addr_d <= ~rstn ? 0 : de_reg_addr_d;
+    exq_d     [0] <= ~rstn ? 0 : ew_sig.d     ;
+    exq_miinst[0] <= ~rstn ? 0 : de_reg.miinst;
+    
+    for(i=1;i<EQ_N;i=i+1) begin
+      exq_miinst   [i] <= exq_miinst   [i-1];
+      exq_ld_offset[i] <= exq_ld_offset[i-1];
+
+      if (i==LOAD_LATENCY+1 && exq_miinst[i-1].opcode==MIOP_L) begin
+        case (miinst[i-1].bmd)
+          BMD_08 : exq_d[i] <= reg_t'(ld_data_to_write[ 7:0]);
+          BMD_32 : exq_d[i] <= reg_t'(ld_data_to_write[31:0]);
+          default: exq_d[i] <= reg_t'(ld_data_to_write[63:0]);
+        endcase
+      end else begin
+        exq_d[i] <= exq_d[i-1];
+      end
+    end
   end
 
   alu alu_1 (
-    .d            (exe_d            ),
-    .opcode       (de_opcode        ),
-    .s            (de_s             ),
-    .t            (de_t             ),
-    .imm          (de_immediate     ),
-    .bit_mode     (de_bit_mode      ),
-    .eflags       (exe_eflags       ),
-    .eflags_update(exe_eflags_update),
-    .eflags_as_src(gpr[`EFL_ADDR]   )
+    .miinst       (de_reg.miinst       ),
+    .d            (ew_sig.d            ),
+    .s            (de_reg.s            ),
+    .t            (de_reg.t            ),
+    .eflags       (ew_sig.eflags       ),
+    .eflags_update(ew_sig.eflags_update),
+    .eflags_as_src(gpr[`EFL_ADDR]      )
   );
 
   execute_memory_access mem_1 (
-    .opcode   (de_opcode   ),
-    .d        (de_d        ),
-    .s        (de_s        ),
-    .t        (de_t        ),
-    .imm      (de_immediate),
-    .mem_addr (mem_addr    ),
-    .ld_offset(ew_ld_offset),
-    .st_data  (st_data     ),
-    .we       (we          ),
-    .clk      (clk         ),
-    .rstn     (rstn        )
+    .miinst   (de_reg.miinst),
+    .d        (de_reg.d     ),
+    .s        (de_reg.s     ),
+    .t        (de_reg.t     ),
+    .mem_addr (mem_addr     ),
+    .st_data  (st_data      ),
+    .we       (we           ),
+    .ld_offset(ld_offset    ),
+    .clk      (clk          ),
+    .rstn     (rstn         )
   );
   execute_branch br_1 (
-    .opcode           (de_opcode     ),
-    .d                (de_d          ),
-    .imm              (de_immediate  ),
-    .pc               (de_pc         ),
-    .eflags           (gpr[`EFL_ADDR]),
-    .rcx              (gpr[`RCX_ADDR]),
-    .bit_mode         (de_bit_mode   ),
-    .branch_direction (exe_bd        ),
-    .branch_enable    (exe_be        )
+    .miinst          (de_reg.miinst ),
+    .d               (de_reg.d      ),
+    .eflags          (gpr[`EFL_ADDR]),
+    .rcx             (gpr[`RCX_ADDR]),
+    .branch_direction(ew_sig.bd     ),
+    .branch_enable   (ew_sig.be     )
   );
 endmodule
 
 module execute_memory_access (
-  input wire [`OPCODE_W-1:0] opcode   ,
-  input wire [`REG_W   -1:0] d        ,
-  input wire [`REG_W   -1:0] s        ,
-  input wire [`REG_W   -1:0] t        ,
-  input wire [`IMM_W   -1:0] imm      ,
-  output reg [`ADDR_W  -1:0] mem_addr ,
-  output reg [          2:0] ld_offset,
-  output reg [`REG_W   -1:0] st_data  ,
-  output reg [`DATA_W/8-1:0] we       ,
-  input wire                 clk      ,
-  input wire                 rstn
+  input miinst_t       miinst   ,
+  input    reg_t       d        ,
+  input    reg_t       s        ,
+  input    reg_t       t        ,
+  output  addr_t       mem_addr ,
+  output   reg_t       st_data  ,
+  output   logic       we       ,
+  output   logic [2:0] ld_offset,
+  input    logic       clk      ,
+  input    logic       rstn
 );
-  wire [`ADDR_W:0] a = signed'({1'b0,s})+(`ADDR_W+1)'(signed'(imm));
-
+  addr_t a;
+  
+  assign a = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'(signed'(miinst.imm)));
   always @(posedge clk) begin
-    st_data   <= ~rstn ? 0 : d << {a[2:0],3'b000} ;
-    mem_addr  <= ~rstn ? 0 : {3'b0,a[`ADDR_W-1:3]};
-    ld_offset <= ~rstn ? 0 : a[2:0];
-    we        <= ~rstn ? 0 :
-      (opcode==`MICRO_SB) ? 8'h1  << a[2:0] :
-      (opcode==`MICRO_SD) ? 8'h0f << a[2:0] :
-      (opcode==`MICRO_SQ) ? 8'hff           : 8'd0;
+    if (~rstn) begin
+      we <= 0;
+    end else begin
+      mem_addr  <= addr_t'(a[`ADDR_W-1:3]);
+      st_data   <=  reg_t'(d << {a[2:0],3'b000});
+      ld_offset <= a[2:0];
+      we        <=
+        (miinst.opcode!=MIOP_S) ? 8'h00           :
+        (miinst.bmd   ==BMD_08) ? 8'h01 << a[2:0] :
+        (miinst.bmd   ==BMD_32) ? 8'h0f << a[2:0] :
+        (miinst.bmd   ==BMD_64) ? 8'hff           : 8'h00;
   end
 endmodule
 
 module execute_branch (
-  input wire [`OPCODE_W  -1:0] opcode          ,
-  input wire [`REG_W     -1:0] d               ,
-  input wire [`IMM_W     -1:0] imm             ,
-  input wire [`ADDR_W    -1:0] pc              ,
-  input wire [`REG_W     -1:0] eflags          ,
-  input wire [`REG_W     -1:0] rcx             ,
-  input wire [`BIT_MODE_W-1:0] bit_mode        ,
-  output reg [`ADDR_W    -1:0] branch_direction,
-  output reg                   branch_enable
+  input   miinst_t miinst          ,
+  input      reg_t d               ,
+  input      reg_t eflags          ,
+  input      reg_t rcx             ,
+  output    addr_t branch_direction,
+  output     logic branch_enable   //
 );
   assign branch_enable =
     // 無条件分岐
-    (opcode==`MICRO_J  ) ?  1              :
-    (opcode==`MICRO_JR ) ?  1              :
+    (miinst.opcode==MIOP_J  ) ?  1              :
+    (miinst.opcode==MIOP_JR ) ?  1              :
     // 条件分岐 Jcc
-    (opcode==`MICRO_JA ) ?  above          :
-    (opcode==`MICRO_JAE) ?  above   | equal:
-    (opcode==`MICRO_JB ) ?  below          :
-    (opcode==`MICRO_JBE) ?  below   | equal:
-    (opcode==`MICRO_JC ) ?  carry          :
-    (opcode==`MICRO_JE ) ?  equal          :
-    (opcode==`MICRO_JG ) ?  greater        :
-    (opcode==`MICRO_JG ) ?  greater | equal:
-    (opcode==`MICRO_JL ) ?  less           :
-    (opcode==`MICRO_JLE) ?  less    | equal:
-    (opcode==`MICRO_JO ) ?  overflow       :
-    (opcode==`MICRO_JP ) ?  parity         :
-    (opcode==`MICRO_JS ) ?  sign           :
-    (opcode==`MICRO_JNE) ? ~equal          :
-    (opcode==`MICRO_JNP) ? ~parity         :
-    (opcode==`MICRO_JNS) ? ~sign           :
-    (opcode==`MICRO_JNO) ? ~overflow       :
+    (miinst.opcode==MIOP_JA ) ?  above          :
+    (miinst.opcode==MIOP_JAE) ?  above   | equal:
+    (miinst.opcode==MIOP_JB ) ?  below          :
+    (miinst.opcode==MIOP_JBE) ?  below   | equal:
+    (miinst.opcode==MIOP_JC ) ?  carry          :
+    (miinst.opcode==MIOP_JE ) ?  equal          :
+    (miinst.opcode==MIOP_JG ) ?  greater        :
+    (miinst.opcode==MIOP_JGE) ?  greater | equal:
+    (miinst.opcode==MIOP_JL ) ?  less           :
+    (miinst.opcode==MIOP_JLE) ?  less    | equal:
+    (miinst.opcode==MIOP_JO ) ?  overflow       :
+    (miinst.opcode==MIOP_JP ) ?  parity         :
+    (miinst.opcode==MIOP_JS ) ?  sign           :
+    (miinst.opcode==MIOP_JNE) ? ~equal          :
+    (miinst.opcode==MIOP_JNP) ? ~parity         :
+    (miinst.opcode==MIOP_JNS) ? ~sign           :
+    (miinst.opcode==MIOP_JNO) ? ~overflow       :
     // 条件分岐 JCX
-    (opcode==`MICRO_JCX) ?  (
-    (bit_mode==`BIT_MODE_32) ? ~|rcx[31:0] :
-    /*       ==`BIT_MODE_64 */ ~|rcx[63:0]
-    )                                      : 0;
+    (miinst.opcode==MIOP_JCX) ?  (
+    (miinst.bmd==BMD_32) ? ~|rcx[31:0]:
+    /*         ==BMD_64 */ ~|rcx[63:0]
+    )                                           : 0;
 
   assign branch_direction =
     // 無条件分岐
-    (opcode==`MICRO_J  ) ? type_rel :
-    (opcode==`MICRO_JR ) ? type_reg :
+    (miinst.opcode==MIOP_J  ) ? type_rel :
+    (miinst.opcode==MIOP_JR ) ? type_reg :
     // 条件分岐 Jcc
-    (opcode==`MICRO_JA ) ? type_rel :
-    (opcode==`MICRO_JAE) ? type_rel :
-    (opcode==`MICRO_JB ) ? type_rel :
-    (opcode==`MICRO_JBE) ? type_rel :
-    (opcode==`MICRO_JC ) ? type_rel :
-    (opcode==`MICRO_JE ) ? type_rel :
-    (opcode==`MICRO_JG ) ? type_rel :
-    (opcode==`MICRO_JG ) ? type_rel :
-    (opcode==`MICRO_JL ) ? type_rel :
-    (opcode==`MICRO_JLE) ? type_rel :
-    (opcode==`MICRO_JO ) ? type_rel :
-    (opcode==`MICRO_JP ) ? type_rel :
-    (opcode==`MICRO_JS ) ? type_rel :
-    (opcode==`MICRO_JNE) ? type_rel :
-    (opcode==`MICRO_JNP) ? type_rel :
-    (opcode==`MICRO_JNS) ? type_rel :
-    (opcode==`MICRO_JNO) ? type_rel :
+    (miinst.opcode==MIOP_JA ) ? type_rel :
+    (miinst.opcode==MIOP_JAE) ? type_rel :
+    (miinst.opcode==MIOP_JB ) ? type_rel :
+    (miinst.opcode==MIOP_JBE) ? type_rel :
+    (miinst.opcode==MIOP_JC ) ? type_rel :
+    (miinst.opcode==MIOP_JE ) ? type_rel :
+    (miinst.opcode==MIOP_JG ) ? type_rel :
+    (miinst.opcode==MIOP_JG ) ? type_rel :
+    (miinst.opcode==MIOP_JL ) ? type_rel :
+    (miinst.opcode==MIOP_JLE) ? type_rel :
+    (miinst.opcode==MIOP_JO ) ? type_rel :
+    (miinst.opcode==MIOP_JP ) ? type_rel :
+    (miinst.opcode==MIOP_JS ) ? type_rel :
+    (miinst.opcode==MIOP_JNE) ? type_rel :
+    (miinst.opcode==MIOP_JNP) ? type_rel :
+    (miinst.opcode==MIOP_JNS) ? type_rel :
+    (miinst.opcode==MIOP_JNO) ? type_rel :
     // 条件分岐 JCX
-    (opcode==`MICRO_JCX) ? type_rel : 0;
+    (miinst.opcode==MIOP_JCX) ? type_rel : 0;
 
   wire above   ,
        below   ,
@@ -182,8 +195,8 @@ module execute_branch (
        parity  ,
        sign    ;
   
-  wire [`ADDR_W-1:0] type_reg =`ADDR_W'(d)                          ;
-  wire [`ADDR_W-1:0] type_rel = pc+`ADDR_W'(signed'(imm))+`ADDR_W'd1;
+  addr_t type_reg = addr_t'(d)                         ;
+  addr_t type_rel = pc+addr_t'(signed'(imm))+addr_t'(1);
 
   condition_clarifier condition_clarifier_1 (
     .eflags  (eflags  ),

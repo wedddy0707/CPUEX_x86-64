@@ -2,37 +2,44 @@
 `include "common_params.h"
 
 module stall_control #(
-  parameter LOAD_LATENCY    = 1,
-  parameter EW_LAYER        = 1
+  parameter LOAD_LATENCY = 1,
+  parameter POST_DEC_LD  = 3
 ) (
-  input wire [`OPCODE_W  -1:0] dec_opcode             ,
-  input wire [`OPCODE_W  -1:0] exe_opcode             ,
-  input wire [`OPCODE_W  -1:0] wri_opcode [EW_LAYER:0],
-  input wire                   forward_from_exe       ,
-  input wire [EW_LAYER     :0] forward_from_wri       ,
-  output reg                   stall_phase            ,
-  output reg                   stall_pc               ,
-  input wire                   clk                    ,
-  input wire                   rstn
+  input miinst_t dec_miinst                   ,
+  input miinst_t pos_miinst  [POST_DEC_LD-1:0],
+  input    reg_t pos_d       [POST_DEC_LD-1:0],
+  output   fwd_t fwd_sig_from[POST_DEC_LD-1:0],
+  output   reg_t fwd_val_from[POST_DEC_LD-1:0],
+  output   logic stall_phase                  ,
+  output   logic stall_pc                     ,
+  input    logic clk                          ,
+  input    logic rstn
 );
   localparam LL = LOAD_LATENCY;
-  localparam EW = EW_LAYER;
-
-  wire           load_in_exe; // Execute Phase にLoad系命令(*1)があるか.
-  wire [LL  :0]  load_in_wri; // Write Back Phase[0-LL] にLoad系命令があるか.
+  localparam LD = POST_DEC_LD ;
   
-  load_inst_detector load_inst_detector_1(exe_opcode, load_in_exe);
+  forward_control #(
+    POST_DEC_LD
+  ) forward_control_1 (
+    .(*)
+  );
+
+  wire [LD-1:0] fwd_from            ;
+  wire [LD-1:0] load_in             ;
+  wire [LD-1:0] stall_due_to_load_in;
 
   genvar i;
   generate
-  for(i=0;i<LL+1;i=i+1) begin: gen_load
-    load_inst_detector lid2(wri_opcode[i],load_in_wri[i]);
+  for(i=0;i<LD;i=i+1) begin: generate_0
+    assign fwd_from[i] = fwd_sig_from[i].d|fwd_sig_from[i].s|fwd_sig_from[i].t;
+  end
+  for(i=0;i<LD;i=i+1) begin: generate_1
+    assign load_in [i] = (pos_miinst[i].opcode==MIOP_L);
+  end
+  for(i=0;i<LD;i=i+1) begin: generate_2
+    assign stall_due_to_load_in[i] = load_in[i] & fwd_from[i];
   end
   endgenerate
-
-  wire stall_due_to_load =
-    (  load_in_exe      &forward_from_exe       ) |
-    (|(load_in_wri[LL:0]&forward_from_wri[LL:0])) ;
 
   assign stall_pc = stall_due_to_load;
 

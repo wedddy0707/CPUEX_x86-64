@@ -3,9 +3,10 @@
 typedef logic [`INST_W    -1:0] inst_t;
 typedef logic [`IMM_W     -1:0] imm_t ;
 typedef logic [`ADDR_W    -1:0] addr_t;
+typedef logic [`REG_W/8   -1:0]   we_t;
 typedef logic [`NAME_W    -1:0] name_t;
 typedef logic [`REG_ADDR_W-1:0] rega_t;
-typedef logic [            3:0] rex_t ;
+typedef logic [`REG_W     -1:0] reg_t ;
 
 typedef enum {
   MIOP_ADD ,
@@ -65,11 +66,9 @@ typedef enum {
   MIOP_MOVI,
   MIOP_CMP ,
   MIOP_CMPI,
-
   MIOP_L,
   MIOP_S
 } miop_t;
-
 
 typedef enum logic[1:0] {
   BMD_08,
@@ -152,3 +151,25 @@ typedef struct packed {
   logic s;
   logic t;
 } fwd_t;
+
+// For Pipeline Registers
+
+typedef struct packed {
+  miinst_t miinst;
+  reg_t    d;
+  reg_t    s;
+  reg_t    t;
+} de_reg_t;
+
+typedef struct packed {
+  miinst_t miinst;
+  reg_t    d;
+} ew_reg_t;
+
+typedef struct packed {
+  logic    eflags_update;
+  reg_t    eflags;
+  logic    be;
+  addr_t   bd;
+} ew_sig_t;
+

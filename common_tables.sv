@@ -199,7 +199,7 @@ module condition_clarifier (
 endmodule
 
 module echo_assertion #(
-  parameter LATENCY   = 2'd1,
+  parameter LATENCY   = 3'd1,
   parameter IMMEDIATE = 1'd1
 ) (
   input  wire        trigger,
@@ -207,24 +207,39 @@ module echo_assertion #(
   input  wire        clk,
   input  wire        rstn
 );
-  reg [ 1:0] count_down;
+  reg [ 2:0] timer;
 
-  assign assertion = (IMMEDIATE&trigger)|(|count_down);
+  assign assertion = (IMMEDIATE&trigger)|(|timer);
 
   always @(posedge clk) begin
-    count_down <= (~rstn           ) ?       0 :
-                  (trigger         ) ? LATENCY :
-                  (count_down==2'd3) ?       2 :
-                  (count_down==2'd2) ?       1 : 0;
+    timer <= (~rstn      ) ?       0 :
+             (trigger    ) ? LATENCY :
+             (timer!=3'd0) ? timer-1 : 0;
   end
 endmodule
 
-module load_inst_detector (
-  input wire [`OPCODE_W-1:0] opcode,
-  output reg                 is_load_inst
+module trip_assertion #(
+  parameter LATENCY = 1
+) (
+  input  logic trigger ,
+  output logic asserion,
+  input  logic clk     ,
+  input  logic rstn    //
 );
-  assign is_load_inst =
-    (opcode==`MICRO_LB)|(opcode==`MICRO_LD)|(opcode==`MICRO_LQ);
+  integer i;
+  reg     tunnel[LATENCY-1:0];
+  assign  assertion = tunnel[LATENCY-1];
+
+  always @(posedge clk) begin
+    if (~rstn) begin
+      tunnel    <= 0;
+    end else begin
+      tunnel[0] <= trigger;
+
+      for (i=1;i<LATENCY;i=i+1)
+        tunnel[i] <= tunnel[i-1];
+    end 
+  end
 endmodule
 
 `default_nettype wire
