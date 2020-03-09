@@ -20,7 +20,7 @@ module decode_phase #(
   wire [`REG_W-1:0] dec_t;
 
   miint_t nop;
-  assign  nop.opcode = MIOP_NOP;
+  assign  nop.op = MIOP_NOP;
 
   always @(posedge clk) begin
     de_reg.miinst <= (~rstn|flush|stall) ? nop:deq_miinst_head;
@@ -77,9 +77,9 @@ module decode_phase_value_decision #(
   end
   endgenerate
 
-  assign d = (miinst.d==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_d[0];
-  assign s = (miinst.s==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_s[0];
-  assign t = (miinst.t==`RIP_ADDR) ? reg_t'(miinst.pc+1):val_iter_t[0];
+  assign d = (miinst.d==RIP) ? reg_t'(miinst.pc+1):val_iter_d[0];
+  assign s = (miinst.s==RIP) ? reg_t'(miinst.pc+1):val_iter_s[0];
+  assign t = (miinst.t==RIP) ? reg_t'(miinst.pc+1):val_iter_t[0];
 
 endmodule
 

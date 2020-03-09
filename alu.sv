@@ -23,12 +23,12 @@ module alu (
   reg_t d[`PRIMITIVE_CALC_N-1:0];
   reg_t e[`PRIMITIVE_CALC_N-1:0];
 
-  miop_t opcode_alu;
-  reg_t       s_alu;
-  reg_t       t_alu;
+  miop_t op_alu;
+  reg_t   s_alu;
+  reg_t   t_alu;
 
   always_comb begin
-    case (opcode_alu)
+    case (op_alu)
       MIOP_ADD:{d,eflags} <= {d[`PRIMITIVE_CALC_ADD],e[`PRIMITIVE_CALC_ADD]};
       MIOP_AND:{d,eflags} <= {d[`PRIMITIVE_CALC_AND],e[`PRIMITIVE_CALC_AND]};
       MIOP_OR :{d,eflags} <= {d[`PRIMITIVE_CALC_OR ],e[`PRIMITIVE_CALC_OR ]};
@@ -37,7 +37,7 @@ module alu (
       default :{d,eflags} <=  0;
     endcase
 
-    case (opcode_alu)
+    case (op_alu)
       MIOP_ADD: eflags_update <= 1;
       MIOP_AND: eflags_update <= 1;
       default : eflags_update <= 0;
@@ -60,25 +60,25 @@ module alu (
   endgenerate
 
   reform_src_in_alu reform_src_in_alu_1 (
-    .miinst    (miinst                   ),
-    .s         (s                        ),
-    .t         (t                        ),
-    .cf        (eflags_as_src[`EFLAGS_CF]),
-    .opcode_alu(opcode_alu               ),
-    .s_alu     (s_alu                    ),
-    .t_alu     (t_alu                    )
+    .miinst(miinst                   ),
+    .s     (s                        ),
+    .t     (t                        ),
+    .cf    (eflags_as_src[`EFLAGS_CF]),
+    .op_alu(op_alu                   ),
+    .s_alu (s_alu                    ),
+    .t_alu (t_alu                    )
   );
 endmodule
 
 module reform_src_in_alu (
-  input  miinst_t miinst    ,
-  input     reg_t s         ,
-  input     reg_t t         ,
-  input     logic cf        ,
-  output   miop_t opcode_alu,
-  output    reg_t s_alu     ,
-  output    reg_t t_alu     ,
-  output    bmd_t bmd_alu   //
+  input  miinst_t miinst ,
+  input     reg_t s      ,
+  input     reg_t t      ,
+  input     logic cf     ,
+  output   miop_t op_alu ,
+  output    reg_t s_alu  ,
+  output    reg_t t_alu  ,
+  output    bmd_t bmd_alu//
 );
   function reg_t neg (input reg_t x);
   begin
@@ -92,40 +92,74 @@ module reform_src_in_alu (
   always_comb begin
     bmd_alu <= miinst.bmd;
 
-    case (miinst.opcode)
-      MIOP_ADDI :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx                 };
-      MIOP_ADCI :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx    +`REG_W'(cf) };
-      MIOP_SUBI :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
-      MIOP_SBBI :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx+`REG_W'(cf))};
-      MIOP_MULI :{opcode_alu,s_alu,t_alu}<={MIOP_MUL,s,    imm_sx             };
-      MIOP_DIVI :{opcode_alu,s_alu,t_alu}<={MIOP_DIV,s,    imm_sx             };
-      MIOP_ANDI :{opcode_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
-      MIOP_ORI  :{opcode_alu,s_alu,t_alu}<={MIOP_OR ,s,    imm_zx             };
-      MIOP_XORI :{opcode_alu,s_alu,t_alu}<={MIOP_XOR,s,    imm_zx             };
-      MIOP_SLLI :{opcode_alu,s_alu,t_alu}<={MIOP_SLL,s,    imm_zx             };
-      MIOP_SRLI :{opcode_alu,s_alu,t_alu}<={MIOP_SRL,s,    imm_zx             };
-      MIOP_SRAI :{opcode_alu,s_alu,t_alu}<={MIOP_SRA,s,    imm_zx             };
-      MIOP_MOVI :{opcode_alu,s_alu,t_alu}<={MIOP_OR ,0,    imm_zx             };
-      MIOP_CMPI :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
-      MIOP_TESTI:{opcode_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
-      MIOP_ADD  :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,    t                  };
-      MIOP_SUB  :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t)                 };
-      MIOP_MUL  :{opcode_alu,s_alu,t_alu}<={MIOP_MUL,s,    t                  };
-      MIOP_DIV  :{opcode_alu,s_alu,t_alu}<={MIOP_DIV,s,    t                  };
-      MIOP_AND  :{opcode_alu,s_alu,t_alu}<={MIOP_AND,s,    t                  };
-      MIOP_OR   :{opcode_alu,s_alu,t_alu}<={MIOP_OR ,s,    t                  };
-      MIOP_XOR  :{opcode_alu,s_alu,t_alu}<={MIOP_XOR,s,    t                  };
-      MIOP_SLL  :{opcode_alu,s_alu,t_alu}<={MIOP_SLL,s,    t                  };
-      MIOP_SRL  :{opcode_alu,s_alu,t_alu}<={MIOP_SRL,s,    t                  };
-      MIOP_SRA  :{opcode_alu,s_alu,t_alu}<={MIOP_SRA,s,    t                  };
-      MIOP_MOV  :{opcode_alu,s_alu,t_alu}<={MIOP_OR ,0,    t                  };
-      MIOP_CMP  :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t)                 };
-      MIOP_TEST :{opcode_alu,s_alu,t_alu}<={MIOP_AND,s,    t                  };
-      MIOP_ADC  :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,    t+`REG_W'(cf)      };
-      MIOP_SBB  :{opcode_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t+`REG_W'(cf))     };
-      default   :{opcode_alu,s_alu,t_alu}<={miinst.opcode,s,t                 };
+    case (miinst.op)
+      MIOP_ADDI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx                 };
+      MIOP_ADCI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx    +`REG_W'(cf) };
+      MIOP_SUBI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
+      MIOP_SBBI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx+`REG_W'(cf))};
+      MIOP_MULI :{op_alu,s_alu,t_alu}<={MIOP_MUL,s,    imm_sx             };
+      MIOP_DIVI :{op_alu,s_alu,t_alu}<={MIOP_DIV,s,    imm_sx             };
+      MIOP_ANDI :{op_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
+      MIOP_ORI  :{op_alu,s_alu,t_alu}<={MIOP_OR ,s,    imm_zx             };
+      MIOP_XORI :{op_alu,s_alu,t_alu}<={MIOP_XOR,s,    imm_zx             };
+      MIOP_SLLI :{op_alu,s_alu,t_alu}<={MIOP_SLL,s,    imm_zx             };
+      MIOP_SRLI :{op_alu,s_alu,t_alu}<={MIOP_SRL,s,    imm_zx             };
+      MIOP_SRAI :{op_alu,s_alu,t_alu}<={MIOP_SRA,s,    imm_zx             };
+      MIOP_MOVI :{op_alu,s_alu,t_alu}<={MIOP_OR ,0,    imm_zx             };
+      MIOP_CMPI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
+      MIOP_TESTI:{op_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
+      MIOP_ADD  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,    t                  };
+      MIOP_SUB  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t)                 };
+      MIOP_MUL  :{op_alu,s_alu,t_alu}<={MIOP_MUL,s,    t                  };
+      MIOP_DIV  :{op_alu,s_alu,t_alu}<={MIOP_DIV,s,    t                  };
+      MIOP_AND  :{op_alu,s_alu,t_alu}<={MIOP_AND,s,    t                  };
+      MIOP_OR   :{op_alu,s_alu,t_alu}<={MIOP_OR ,s,    t                  };
+      MIOP_XOR  :{op_alu,s_alu,t_alu}<={MIOP_XOR,s,    t                  };
+      MIOP_SLL  :{op_alu,s_alu,t_alu}<={MIOP_SLL,s,    t                  };
+      MIOP_SRL  :{op_alu,s_alu,t_alu}<={MIOP_SRL,s,    t                  };
+      MIOP_SRA  :{op_alu,s_alu,t_alu}<={MIOP_SRA,s,    t                  };
+      MIOP_MOV  :{op_alu,s_alu,t_alu}<={MIOP_OR ,0,    t                  };
+      MIOP_CMP  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t)                 };
+      MIOP_TEST :{op_alu,s_alu,t_alu}<={MIOP_AND,s,    t                  };
+      MIOP_ADC  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,    t+`REG_W'(cf)      };
+      MIOP_SBB  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t+`REG_W'(cf))     };
+      default   :{op_alu,s_alu,t_alu}<={miinst.op,s,t                     };
     endcase
   end
+endmodule
+
+module very_primitive_calc #(
+  parameter CALC = `PRIMITIVE_CALC_ADD
+) (
+  output [`REG_W  :0] d,
+  input  [`REG_W-1:0] s,
+  input  [`REG_W-1:0] t
+);
+  function logic msb (input reg_t x);
+  begin
+    msb = x[`REG_W-1];
+  end
+  endfunction
+
+  generate
+  begin
+    if      (CALC==`PRIMITIVE_CALC_ADD) begin: calc_add
+      assign d = signed'({msb(s),s})+signed'({msb(t),t});
+    end
+    else if (CALC==`PRIMITIVE_CALC_AND) begin: calc_and
+      assign d = {1'b0,s}&{1'b0,t};
+    end
+    else if (CALC==`PRIMITIVE_CALC_OR ) begin: calc_or
+      assign d = {1'b0,s}|{1'b0,t};
+    end
+    else if (CALC==`PRIMITIVE_CALC_XOR) begin: calc_xor
+      assign d = {1'b0,s}^{1'b0,t};
+    end
+    else if (CALC==`PRIMITIVE_CALC_SLL) begin: calc_sll
+      assign d = {1'b0,s} << t[5:0];
+    end
+  end
+  endgenerate
 endmodule
 
 module primitive_calc #(
@@ -140,27 +174,13 @@ module primitive_calc #(
 );
   localparam ARITHMETIC =(CALC==`PRIMITIVE_CALC_ADD);
 
-  logic [`REG_W:0] d_with_bits_maximum;
+  logic [`REG_W:0] d_with_bits_extended;
 
-  generate
-  begin
-    if      (CALC==`PRIMITIVE_CALC_ADD) begin: calc_add
-      assign d_with_bits_maximum = (`REG_W+1)'(signed'(s))+(`REG_W+1)'(signed'(t));
-    end
-    else if (CALC==`PRIMITIVE_CALC_AND) begin: calc_and
-      assign d_with_bits_maximum = (`REG_W+1)'(s)&(`REG_W+1)'(t);
-    end
-    else if (CALC==`PRIMITIVE_CALC_OR ) begin: calc_or
-      assign d_with_bits_maximum = (`REG_W+1)'(s)|(`REG_W+1)'(t);
-    end
-    else if (CALC==`PRIMITIVE_CALC_XOR) begin: calc_xor
-      assign d_with_bits_maximum = (`REG_W+1)'(s)^(`REG_W+1)'(t);
-    end
-    else if (CALC==`PRIMITIVE_CALC_SLL) begin: calc_sll
-      assign d_with_bits_maximum = (`REG_W+1)'(s) << t[5:0];
-    end
-  end
-  endgenerate
+  very_primitive_calc #(CALC) very_primitive_calc_inst (
+    .d (d_with_bits_extended),
+    .s (s                   ),
+    .t (t                   )
+  );
 
   function logic msb (input reg_t x, input bmd_t b);
   begin
@@ -174,16 +194,16 @@ module primitive_calc #(
   endfunction
 
   assign d =
-    (bmd==BMD_08) ? reg_t'(d_with_bits_maximum[ 7:0]):
-    (bmd==BMD_16) ? reg_t'(d_with_bits_maximum[15:0]):
-    (bmd==BMD_32) ? reg_t'(d_with_bits_maximum[31:0]):
-                    reg_t'(d_with_bits_maximum[63:0]);
+    (bmd==BMD_08) ? reg_t'(d_with_bits_extended[ 7:0]):
+    (bmd==BMD_16) ? reg_t'(d_with_bits_extended[15:0]):
+    (bmd==BMD_32) ? reg_t'(d_with_bits_extended[31:0]):
+                    reg_t'(d_with_bits_extended[63:0]);
 
   wire cf =
-    (bmd==BMD_08) ? reg_t'(d_with_bits_maximum[ 8]):
-    (bmd==BMD_16) ? reg_t'(d_with_bits_maximum[16]):
-    (bmd==BMD_32) ? reg_t'(d_with_bits_maximum[32]):
-                    reg_t'(d_with_bits_maximum[64]);
+    (bmd==BMD_08) ? reg_t'(d_with_bits_extended[ 8]):
+    (bmd==BMD_16) ? reg_t'(d_with_bits_extended[16]):
+    (bmd==BMD_32) ? reg_t'(d_with_bits_extended[32]):
+                    reg_t'(d_with_bits_extended[64]);
 
   wire of =( msb(d,bmd)&~msb(s,bmd)&~msb(t,bmd))|
            (~msb(d,bmd)& msb(s,bmd)& msb(t,bmd));

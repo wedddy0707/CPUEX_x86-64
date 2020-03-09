@@ -187,19 +187,19 @@ module fetch_phase #(
               for(i=0;i<MQ_N;i=i+1) begin
                 miinst[i].bmd <= bmd_det(~inst[0], rex_w);
               end
-              miinst[`MQ_ARITH].d <= `RAX_ADDR;
-              miinst[`MQ_ARITH].s <= `RAX_ADDR;
+              miinst[`MQ_ARITH].d <= RAX;
+              miinst[`MQ_ARITH].s <= RAX;
               imm_byte            <= imm_byte_det(inst[2]&~inst[0],inst[2]);
               imm_to[`MQ_ARITH]   <= 1;
               case (inst[5:3])
-                3'b000 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ADDI:MIOP_ADD;miinst[`MQ_ARITH].name<="ADD";end
-                3'b001 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ADCI:MIOP_ADC;miinst[`MQ_ARITH].name<="ADC";end
-                3'b010 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ANDI:MIOP_AND;miinst[`MQ_ARITH].name<="AND";end
-                3'b011 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_XORI:MIOP_XOR;miinst[`MQ_ARITH].name<="XOR";end
-                3'b100 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_ORI :MIOP_OR ;miinst[`MQ_ARITH].name<="OR" ;end
-                3'b101 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_SBBI:MIOP_SBB;miinst[`MQ_ARITH].name<="SBB";end
-                3'b110 :begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_SUBI:MIOP_SUB;miinst[`MQ_ARITH].name<="SUB";end
-                default:begin miinst[`MQ_ARITH].opcode<=(inst[2])? MIOP_CMPI:MIOP_CMP;miinst[`MQ_ARITH].name<="CMP";end
+                3'b000 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_ADDI:MIOP_ADD;miinst[`MQ_ARITH].name<="ADD";end
+                3'b001 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_ADCI:MIOP_ADC;miinst[`MQ_ARITH].name<="ADC";end
+                3'b010 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_ANDI:MIOP_AND;miinst[`MQ_ARITH].name<="AND";end
+                3'b011 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_XORI:MIOP_XOR;miinst[`MQ_ARITH].name<="XOR";end
+                3'b100 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_ORI :MIOP_OR ;miinst[`MQ_ARITH].name<="OR" ;end
+                3'b101 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_SBBI:MIOP_SBB;miinst[`MQ_ARITH].name<="SBB";end
+                3'b110 :begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_SUBI:MIOP_SUB;miinst[`MQ_ARITH].name<="SUB";end
+                default:begin miinst[`MQ_ARITH].op<=(inst[2])? MIOP_CMPI:MIOP_CMP;miinst[`MQ_ARITH].name<="CMP";end
               endcase
               state <= make_state (
                 inst[2] ? IMMEDIATE:MODRM,
@@ -223,12 +223,12 @@ module fetch_phase #(
               state.obj <= OPCODE_1;
               if (inst[3]) begin
                 name <= "POP";
-                miinst[0] <=  load_on_pop(`REG_ADDR_W'({rex_b,inst[2:0]},pc);
+                miinst[0] <=  load_on_pop(rega_t'({rex_b,inst[2:0]},pc);
                 miinst[1] <=  addi_on_pop(pc);
               end else begin
                 name <= "PUSH";
                 miinst[0] <=  addi_on_push(pc);
-                miinst[1] <= store_on_push(`REG_ADDR_W'({rex_b,inst[2:0]},pc);
+                miinst[1] <= store_on_push(rega_t'({rex_b,inst[2:0]},pc);
               end
             end
             8'b011010?0: // Push imm8/16/32
@@ -238,9 +238,9 @@ module fetch_phase #(
               */
               // Use Stack Pointer in this instruction
               name <= "PUSH";
-              miinst[0] <=   make_miinst(MIOP_MOVI,`TMP_ADDR,0,0,0,inst[1]? BMD_08:BMD_32,pc);
+              miinst[0] <=   make_miinst(MIOP_MOVI,TMP,0,0,0,inst[1]? BMD_08:BMD_32,pc);
               miinst[1] <=  addi_on_push(pc);
-              miinst[2] <= store_on_push(`TMP_ADDR,pc);
+              miinst[2] <= store_on_push(TMP,pc);
 
               imm_to[0] <= 1;
               imm_byte  <= imm_byte_det(inst[1],1);
@@ -253,10 +253,10 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name <= "RET";
-              miinst[0] <= load_on_pop(`TMP_ADDR,pc);
+              miinst[0] <= load_on_pop(TMP,pc);
               miinst[1] <= addi_on_pop(pc);
-              miinst[2] <= make_miinst(MIOP_JR  ,`TMP_ADDR,        0,0,0,BMD_32,pc);
-              miinst[3] <= make_miinst(MIOP_ADDI,`RSP_ADDR,`RSP_ADDR,0,0,BMD_64,pc);
+              miinst[2] <= make_miinst(MIOP_JR  ,TMP,    0,0,0,BMD_32,pc);
+              miinst[3] <= make_miinst(MIOP_ADDI,RSP,RSP,0,0,BMD_64,pc);
               imm_to[3] <= 1;
               imm_byte  <= 2;
               state.obj <= IMMEDIATE;
@@ -265,9 +265,9 @@ module fetch_phase #(
             begin
               // Use Stack Pointer in this instruction
               name      <= "RET";
-              miinst[0] <= load_on_pop(`TMP_ADDR,pc);
+              miinst[0] <= load_on_pop(TMP,pc);
               miinst[1] <= addi_on_pop(pc);
-              miinst[2] <= make_miinst(MIOP_JR  ,`TMP_ADDR,0,0,0,BMD_32,pc);
+              miinst[2] <= make_miinst(MIOP_JR  ,TMP,0,0,0,BMD_32,pc);
               valid     <= 1;
               state.obj <= OPCODE_1;
             end
@@ -282,7 +282,7 @@ module fetch_phase #(
               // Use Stack Pointer in this instruction
               name       <= "CALL";
               miinst [1] <=  addi_on_push(pc);
-              miinst [2] <= store_on_push(`RIP_ADDR);
+              miinst [2] <= store_on_push(RIP);
               miinst [3] <=   make_miinst(MIOP_J,0,0,0,0,BMD_32,pc);
               disp_to[3] <= 1;
               disp_byte  <= 4;
@@ -307,10 +307,10 @@ module fetch_phase #(
             8'b100010??:
             begin
               name <="MOV";
-              miinst[`MQ_ARITH].opcode <= MIOP_MOV;
-              miinst[`MQ_LOAD ].bmd    <= bmd_det(~inst[0],rex_w);
-              miinst[`MQ_ARITH].bmd    <= bmd_det(~inst[0],rex_w);
-              miinst[`MQ_STORE].bmd    <= bmd_det(~inst[0],rex_w);
+              miinst[`MQ_ARITH].op  <= MIOP_MOV;
+              miinst[`MQ_LOAD ].bmd <= bmd_det(~inst[0],rex_w);
+              miinst[`MQ_ARITH].bmd <= bmd_det(~inst[0],rex_w);
+              miinst[`MQ_STORE].bmd <= bmd_det(~inst[0],rex_w);
 
               state <= make_state(MODRM,inst[1]? DST_R:DST_RM,GRP_0);
             end
@@ -381,19 +381,19 @@ module fetch_phase #(
             */
             8'b1000010?: // if (?=0) then TEST r/m8 r8 else TEST r/m16(32,64) r16(32,64)
             begin
-              name                    <= "TEST";
-              miinst[`MQ_LOAD ].bmd   <= bmd_det(~inst[0],rex_w);
-              miinst[`MQ_ARITH].bmd   <= bmd_det(~inst[0],rex_w);
-              miinst[`MQ_ARITH].opcode<= MIOP_TEST;
-              state                   <= make_state(MODRM,DST_RM,GRP_0);
+              name                  <= "TEST";
+              miinst[`MQ_LOAD ].bmd <= bmd_det(~inst[0],rex_w);
+              miinst[`MQ_ARITH].bmd <= bmd_det(~inst[0],rex_w);
+              miinst[`MQ_ARITH].op  <= MIOP_TEST;
+              state                 <= make_state(MODRM,DST_RM,GRP_0);
             end
             8'b1010100?: // if (?=0) then TEST AL,imm8 else TEST AX/EAX/RAX,imm16/32/32
             begin
               name      <= "TEST";
               miinst[0] <= make_miinst(
                 MIOP_TESTI,
-                `RAX_ADDR,
-                `RAX_ADDR,
+                RAX,
+                RAX,
                 0,0,
                 bmd_det(~inst[0],rex_w),
                 pc
@@ -443,20 +443,20 @@ module fetch_phase #(
         end
         MODRM:
         begin
-          disp_to[`MQ_LOAD ] <= 1;
-          disp_to[`MQ_STORE] <= 1;
-          miinst [`MQ_LOAD ].opcode <= MIOP_L;
-          miinst [`MQ_LOAD ].d      <=`TMP_ADDR;
-          miinst [`MQ_LOAD ].s      <= rega_t'({rex_b,inst[2:0]});
+          disp_to[`MQ_LOAD ]    <= 1;
+          disp_to[`MQ_STORE]    <= 1;
+          miinst [`MQ_LOAD ].op <= MIOP_L;
+          miinst [`MQ_LOAD ].d  <= TMP;
+          miinst [`MQ_LOAD ].s  <= rega_t'({rex_b,inst[2:0]});
           case (state.dst)
             DST_RM:
             begin
-              miinst[`MQ_ARITH].d      <=`TMP_ADDR;
-              miinst[`MQ_ARITH].s      <=`TMP_ADDR;
-              miinst[`MQ_ARITH].t      <= rega_t'({rex_r,inst[5:3]});
-              miinst[`MQ_STORE].opcode <= MIOP_S;
-              miinst[`MQ_STORE].d      <=`TMP_ADDR;
-              miinst[`MQ_STORE].s      <=`REG_ADDR_W'({rex_b,inst[2:0]});
+              miinst[`MQ_ARITH].d  <= TMP;
+              miinst[`MQ_ARITH].s  <= TMP;
+              miinst[`MQ_ARITH].t  <= rega_t'({rex_r,inst[5:3]});
+              miinst[`MQ_STORE].op <= MIOP_S;
+              miinst[`MQ_STORE].d  <= TMP;
+              miinst[`MQ_STORE].s  <=`rega_t'({rex_b,inst[2:0]});
               case (state.grp)
                 GRP_0: // = どのグループにも属さない
                 begin
@@ -474,14 +474,14 @@ module fetch_phase #(
                     miinst[`MQ_STORE] <= nop;
                   end
                   case (inst[5:3])
-                    3'd0   :begin miinst[`MQ_ARITH].opcode<=MIOP_ADDI;name<="ADD";end
-                    3'd1   :begin miinst[`MQ_ARITH].opcode<=MIOP_ORI ;name<="OR" ;end
-                    3'd2   :begin miinst[`MQ_ARITH].opcode<=MIOP_ADCI;name<="ADC";end
-                    3'd3   :begin miinst[`MQ_ARITH].opcode<=MIOP_SBBI;name<="SBB";end
-                    3'd4   :begin miinst[`MQ_ARITH].opcode<=MIOP_ANDI;name<="AND";end
-                    3'd5   :begin miinst[`MQ_ARITH].opcode<=MIOP_SUBI;name<="SUB";end
-                    3'd6   :begin miinst[`MQ_ARITH].opcode<=MIOP_XORI;name<="XOR";end
-                    default:begin miinst[`MQ_ARITH].opcode<=MIOP_CMPI;name<="CMP";end
+                    3'd0   :begin miinst[`MQ_ARITH].op <=MIOP_ADDI;name<="ADD";end
+                    3'd1   :begin miinst[`MQ_ARITH].op <=MIOP_ORI ;name<="OR" ;end
+                    3'd2   :begin miinst[`MQ_ARITH].op <=MIOP_ADCI;name<="ADC";end
+                    3'd3   :begin miinst[`MQ_ARITH].op <=MIOP_SBBI;name<="SBB";end
+                    3'd4   :begin miinst[`MQ_ARITH].op <=MIOP_ANDI;name<="AND";end
+                    3'd5   :begin miinst[`MQ_ARITH].op <=MIOP_SUBI;name<="SUB";end
+                    3'd6   :begin miinst[`MQ_ARITH].op <=MIOP_XORI;name<="XOR";end
+                    default:begin miinst[`MQ_ARITH].op <=MIOP_CMPI;name<="CMP";end
                   endcase
                 end
                 GRP_1A:
@@ -496,19 +496,19 @@ module fetch_phase #(
                     begin
                       name              <="CALL";
                       miinst[`MQ_RSRV1] <=  addi_on_push(pc);
-                      miinst[`MQ_RSRV2] <= store_on_push(`RIP_ADDR,pc);
-                      miinst[`MQ_RSRV3] <=            jr(`TMP_ADDR,pc);
+                      miinst[`MQ_RSRV2] <= store_on_push(RIP,pc);
+                      miinst[`MQ_RSRV3] <=            jr(TMP,pc);
                     end
                     3'd4:
                     begin
                       name              <="JMP";
-                      miinst[`MQ_RSRV3] <=            jr(`TMP_ADDR,pc);
+                      miinst[`MQ_RSRV3] <=            jr(TMP,pc);
                     end
                     3'd6:
                     begin
                       name              <="PUSH";
                       miinst[`MQ_RSRV1] <=  addi_on_push(pc);
-                      miinst[`MQ_RSRV2] <= store_on_push(`RIP_ADDR,pc);
+                      miinst[`MQ_RSRV2] <= store_on_push(RIP,pc);
                     end
                     default:begin end
                   endcase
@@ -526,14 +526,14 @@ module fetch_phase #(
             end
             default: /* = DST_R */
             begin
-              miinst[`MQ_ARITH].d <=`REG_ADDR_W'({rex_r,inst[5:3]});
-              miinst[`MQ_ARITH].s <=`REG_ADDR_W'({rex_r,inst[5:3]});
-              miinst[`MQ_ARITH].t <=`TMP_ADDR                      ;
+              miinst[`MQ_ARITH].d <= rega_t'({rex_r,inst[5:3]});
+              miinst[`MQ_ARITH].s <= rega_t'({rex_r,inst[5:3]});
+              miinst[`MQ_ARITH].t <= TMP                       ;
               case (state.grp)
                 GRP_LEA:
                 begin
-                  miinst[`MQ_LOAD ].opcode <= MIOP_ADDI;
-                  miinst[`MQ_ARITH].opcode <= MIOP_MOV;
+                  miinst[`MQ_LOAD ].op <= MIOP_ADDI;
+                  miinst[`MQ_ARITH].op <= MIOP_MOV;
                 end
                 default:begin end
               endcase
@@ -547,9 +547,9 @@ module fetch_phase #(
                 3'b101:// disp32のみ
                 begin
                   disp_byte           <= 4;
-                  miinst[`MQ_SCALE]   <= make_miinst(MIOP_XOR,`SCL_ADDR,`SCL_ADDR,`SCL_ADDR,0,BMD_64,pc);
-                  miinst[`MQ_LOAD ].s <=`SCL_ADDR;
-                  miinst[`MQ_STORE].s <=`SCL_ADDR;
+                  miinst[`MQ_SCALE]   <= make_miinst(MIOP_XOR,SCL,SCL,SCL,0,BMD_64,pc);
+                  miinst[`MQ_LOAD ].s <= SCL;
+                  miinst[`MQ_STORE].s <= SCL;
                   state.obj           <= DISPLACEMENT; 
                 end
                 3'b100:// SIB後続
@@ -585,10 +585,10 @@ module fetch_phase #(
                 miinst[`MQ_ARITH].s <= rega_t'({rex_b,inst[2:0]});
               end else begin
                 if (state.grp==GRP_LEA) begin
-                  miinst[`MQ_ARITH].opcode <= MIOP_MOVI;
-                  miinst[`MQ_ARITH].imm    <= rega_t'({rex_b,inst[2:0]});
+                  miinst[`MQ_ARITH].op  <= MIOP_MOVI;
+                  miinst[`MQ_ARITH].imm <= rega_t'({rex_b,inst[2:0]});
                 end else begin
-                  miinst[`MQ_ARITH].t      <= rega_t'({rex_b,inst[2:0]});
+                  miinst[`MQ_ARITH].t   <= rega_t'({rex_b,inst[2:0]});
                 end
               end
             end
@@ -596,9 +596,9 @@ module fetch_phase #(
         end
         SIB:
         begin
-          miinst[`MQ_SCALE]   <= make_miinst(MIOP_SLLI,`SCL_ADDR,miinst[`MQ_LOAD].s,0,imm_t'(inst[7:6]),BMD_64,pc);
-          miinst[`MQ_LOAD ].s <=`SCL_ADDR;
-          miinst[`MQ_LOAD ].t <=`SCL_ADDR;
+          miinst[`MQ_SCALE]   <= make_miinst(MIOP_SLLI,SCL,miinst[`MQ_LOAD].s,0,imm_t'(inst[7:6]),BMD_64,pc);
+          miinst[`MQ_LOAD ].s <= SCL;
+          miinst[`MQ_LOAD ].t <= SCL;
           
           state.obj <= (disp_byte!=0)? DISPLACEMENT:
                        (imm_byte !=0)? IMMEDIATE   :
@@ -695,37 +695,37 @@ module fetch_phase #(
     input addr_t pc
   );
   begin
-    make_miinst.opcode <= opcode;
-    make_miinst.d      <= d;
-    make_miinst.s      <= s;
-    make_miinst.t      <= t;
-    make_miinst.imm    <= imm;
-    make_miinst.bmd    <= bmd;
-    make_miinst.pc     <= pc;
+    make_miinst.op  <= opcode;
+    make_miinst.d   <= d;
+    make_miinst.s   <= s;
+    make_miinst.t   <= t;
+    make_miinst.imm <= imm;
+    make_miinst.bmd <= bmd;
+    make_miinst.pc  <= pc;
   end
   endfunction
   
   function miinst_t load_on_pop (input rega_t dest,input addr_t pc);
   begin
-    load_on_pop<=make_miinst(MIOP_L,dest,`RSP_ADDR,0,0,BMD_64,pc);
+    load_on_pop<=make_miinst(MIOP_L,dest,RSP,0,0,BMD_64,pc);
   end
   endfunction
 
   function miinst_t addi_on_pop(input addr_t pc);
   begin
-    addi_on_pop<=make_miinst(MIOP_ADDI,`RSP_ADDR,`RSP_ADDR,`IMM_W(8),BMD_64,pc);
+    addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W(8),BMD_64,pc);
   end
   endfunction
   
   function miinst_t addi_on_push(input addr_t pc);
   begin
-    addi_on_pop<=make_miinst(MIOP_ADDI,`RSP_ADDR,`RSP_ADDR,`IMM_W(signed'(-8)),BMD_64,pc);
+    addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W(signed'(-8)),BMD_64,pc);
   end
   endfunction
   
   function miinst_t store_on_push(input rega_t dest,input addr_t pc);
   begin
-    load_on_pop<=make_miinst(MIOP_S,dest,`RSP_ADDR,0,0,BMD_64,pc);
+    load_on_pop<=make_miinst(MIOP_S,dest,RSP,0,0,BMD_64,pc);
   end
   endfunction
 
@@ -759,7 +759,13 @@ module fetch_phase #(
   endfunction
 
   miinst_t nop;
-  assign   nop.opcode = MIOP_NOP;
+  assign   nop.op  = MIOP_NOP;
+  assign   nop.d   =        0;
+  assign   nop.s   =        0;
+  assign   nop.t   =        0;
+  assign   nop.imm =        0;
+  assign   nop.bmd =        0;
+  assign   nop.pc  =       pc;
 
   function fstate make_state(
     input fsust_obj  o,

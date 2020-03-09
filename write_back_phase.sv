@@ -18,7 +18,7 @@ module write_back_phase #(
   input     logic rstn           //
 );
   integer i;
-  assign pc_to_mem = gpr[`RIP_ADDR];
+  assign pc_to_mem = gpr[RIP];
   rut_t ew_rut;
 
   always @(posedge clk) begin
@@ -26,20 +26,20 @@ module write_back_phase #(
       for (i=0;i<`REG_N;i=i+1) begin
         gpr[i] <= 0;
       end
-      gpr[`RIP_ADDR] <= addr_t'(signed'(INIT_RIP))-`ADDR_W'(signed'(LOAD_LATENCY));
-      gpr[`RBP_ADDR] <= addr_t'(INIT_RSP);
-      gpr[`RSP_ADDR] <= addr_t'(INIT_RSP);
+      gpr[RIP] <= addr_t'(signed'(INIT_RIP))-`ADDR_W'(signed'(LOAD_LATENCY));
+      gpr[RBP] <= addr_t'(INIT_RSP);
+      gpr[RSP] <= addr_t'(INIT_RSP);
     end else begin
       if (ew_rut.to_gd) begin
         gpr[ew_reg.miinst.d] <= ew_reg.d;
       end
 
       if (ew_sig.eflags_update) begin
-        gpr[`EFL_ADDR] <= ew_sig.eflags;
+        gpr[EFL] <= ew_sig.eflags;
       end
 
-      gpr[`RIP_ADDR] <= ew_sig.be? ew_sig.bd :
-                        stall_pc ? pc_to_fet : gpr[`RIP_ADDR]+1 ;
+      gpr[RIP] <= ew_sig.be? ew_sig.bd :
+                        stall_pc ? pc_to_fet : gpr[RIP]+1 ;
     end
   end
 

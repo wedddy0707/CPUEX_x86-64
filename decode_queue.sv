@@ -31,15 +31,15 @@ module decode_queue (
   generate begin
   for (i=`MQ_N-2;i>=0;i=i-1) begin: determine_fet_head
     assign fet_head_pre[i] =
-      (fet_miinst[i].opcode!=MIOP_NOP) ? `MQ_N_W'(i):fet_head_pre[i+1];
+      (fet_miinst[i].op!=MIOP_NOP) ? `MQ_N_W'(i):fet_head_pre[i+1];
   end
   for (i=1;i<`MQ_N;i=i+1)    begin: determine_fet_tail
     assign fet_tail_pre[i] =
-      (fet_miinst[i].opcode!=MIOP_NOP) ? `MQ_N_W'(i):fet_tail_pre[i-1];
+      (fet_miinst[i].op!=MIOP_NOP) ? `MQ_N_W'(i):fet_tail_pre[i-1];
   end
   for (i=1;i<`DQ_N;i=i+1)    begin: determine_deq_tail
     assign deq_tail_pre[i] =
-      (deq_miinst[i].opcode!=MIOP_NOP) ? `DQ_N_W'(i):deq_tail_pre[i-1];
+      (deq_miinst[i].op!=MIOP_NOP) ? `DQ_N_W'(i):deq_tail_pre[i-1];
   end
   end endgenerate
 
@@ -50,7 +50,7 @@ module decode_queue (
   always @(posedge clk) begin
     if (~rstn | flush) begin
       for (j=0;j<`DQ_N;j=j+1) begin
-        deq_miinst[j].opcode <= MIOP_NOP;
+        deq_miinst[j].op <= MIOP_NOP;
       end
     end else if (~stall) begin
       for (j=0;j<`DQ_N-1;j=j+1) begin

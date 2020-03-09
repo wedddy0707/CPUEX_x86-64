@@ -50,7 +50,7 @@ module execute_phase #(
       exq_miinst   [i] <= exq_miinst   [i-1];
       exq_ld_offset[i] <= exq_ld_offset[i-1];
 
-      if (i==LOAD_LATENCY+1 && exq_miinst[i-1].opcode==MIOP_L) begin
+      if (i==LOAD_LATENCY+1 && exq_miinst[i-1].op==MIOP_L) begin
         case (miinst[i-1].bmd)
           BMD_08 : exq_d[i] <= reg_t'(ld_data_to_write[ 7:0]);
           BMD_32 : exq_d[i] <= reg_t'(ld_data_to_write[31:0]);
@@ -69,7 +69,7 @@ module execute_phase #(
     .t            (de_reg.t            ),
     .eflags       (ew_sig.eflags       ),
     .eflags_update(ew_sig.eflags_update),
-    .eflags_as_src(gpr[`EFL_ADDR]      )
+    .eflags_as_src(gpr[EFL]            )
   );
 
   execute_memory_access mem_1 (
@@ -87,8 +87,8 @@ module execute_phase #(
   execute_branch br_1 (
     .miinst          (de_reg.miinst ),
     .d               (de_reg.d      ),
-    .eflags          (gpr[`EFL_ADDR]),
-    .rcx             (gpr[`RCX_ADDR]),
+    .eflags          (gpr[EFL]      ),
+    .rcx             (gpr[RCX]      ),
     .branch_direction(ew_sig.bd     ),
     .branch_enable   (ew_sig.be     )
   );
@@ -117,10 +117,10 @@ module execute_memory_access (
       st_data   <=  reg_t'(d << {a[2:0],3'b000});
       ld_offset <= a[2:0];
       we        <=
-        (miinst.opcode!=MIOP_S) ? 8'h00           :
-        (miinst.bmd   ==BMD_08) ? 8'h01 << a[2:0] :
-        (miinst.bmd   ==BMD_32) ? 8'h0f << a[2:0] :
-        (miinst.bmd   ==BMD_64) ? 8'hff           : 8'h00;
+        (miinst.op  !=MIOP_S) ? 8'h00           :
+        (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0] :
+        (miinst.bmd ==BMD_32) ? 8'h0f << a[2:0] :
+        (miinst.bmd ==BMD_64) ? 8'hff           : 8'h00;
   end
 endmodule
 
@@ -134,56 +134,56 @@ module execute_branch (
 );
   assign branch_enable =
     // 無条件分岐
-    (miinst.opcode==MIOP_J  ) ?  1              :
-    (miinst.opcode==MIOP_JR ) ?  1              :
+    (miinst.op==MIOP_J  ) ?  1              :
+    (miinst.op==MIOP_JR ) ?  1              :
     // 条件分岐 Jcc
-    (miinst.opcode==MIOP_JA ) ?  above          :
-    (miinst.opcode==MIOP_JAE) ?  above   | equal:
-    (miinst.opcode==MIOP_JB ) ?  below          :
-    (miinst.opcode==MIOP_JBE) ?  below   | equal:
-    (miinst.opcode==MIOP_JC ) ?  carry          :
-    (miinst.opcode==MIOP_JE ) ?  equal          :
-    (miinst.opcode==MIOP_JG ) ?  greater        :
-    (miinst.opcode==MIOP_JGE) ?  greater | equal:
-    (miinst.opcode==MIOP_JL ) ?  less           :
-    (miinst.opcode==MIOP_JLE) ?  less    | equal:
-    (miinst.opcode==MIOP_JO ) ?  overflow       :
-    (miinst.opcode==MIOP_JP ) ?  parity         :
-    (miinst.opcode==MIOP_JS ) ?  sign           :
-    (miinst.opcode==MIOP_JNE) ? ~equal          :
-    (miinst.opcode==MIOP_JNP) ? ~parity         :
-    (miinst.opcode==MIOP_JNS) ? ~sign           :
-    (miinst.opcode==MIOP_JNO) ? ~overflow       :
+    (miinst.op==MIOP_JA ) ?  above          :
+    (miinst.op==MIOP_JAE) ?  above   | equal:
+    (miinst.op==MIOP_JB ) ?  below          :
+    (miinst.op==MIOP_JBE) ?  below   | equal:
+    (miinst.op==MIOP_JC ) ?  carry          :
+    (miinst.op==MIOP_JE ) ?  equal          :
+    (miinst.op==MIOP_JG ) ?  greater        :
+    (miinst.op==MIOP_JGE) ?  greater | equal:
+    (miinst.op==MIOP_JL ) ?  less           :
+    (miinst.op==MIOP_JLE) ?  less    | equal:
+    (miinst.op==MIOP_JO ) ?  overflow       :
+    (miinst.op==MIOP_JP ) ?  parity         :
+    (miinst.op==MIOP_JS ) ?  sign           :
+    (miinst.op==MIOP_JNE) ? ~equal          :
+    (miinst.op==MIOP_JNP) ? ~parity         :
+    (miinst.op==MIOP_JNS) ? ~sign           :
+    (miinst.op==MIOP_JNO) ? ~overflow       :
     // 条件分岐 JCX
-    (miinst.opcode==MIOP_JCX) ?  (
+    (miinst.op==MIOP_JCX) ?  (
     (miinst.bmd==BMD_32) ? ~|rcx[31:0]:
     /*         ==BMD_64 */ ~|rcx[63:0]
     )                                           : 0;
 
   assign branch_direction =
     // 無条件分岐
-    (miinst.opcode==MIOP_J  ) ? type_rel :
-    (miinst.opcode==MIOP_JR ) ? type_reg :
+    (miinst.op==MIOP_J  ) ? type_rel :
+    (miinst.op==MIOP_JR ) ? type_reg :
     // 条件分岐 Jcc
-    (miinst.opcode==MIOP_JA ) ? type_rel :
-    (miinst.opcode==MIOP_JAE) ? type_rel :
-    (miinst.opcode==MIOP_JB ) ? type_rel :
-    (miinst.opcode==MIOP_JBE) ? type_rel :
-    (miinst.opcode==MIOP_JC ) ? type_rel :
-    (miinst.opcode==MIOP_JE ) ? type_rel :
-    (miinst.opcode==MIOP_JG ) ? type_rel :
-    (miinst.opcode==MIOP_JG ) ? type_rel :
-    (miinst.opcode==MIOP_JL ) ? type_rel :
-    (miinst.opcode==MIOP_JLE) ? type_rel :
-    (miinst.opcode==MIOP_JO ) ? type_rel :
-    (miinst.opcode==MIOP_JP ) ? type_rel :
-    (miinst.opcode==MIOP_JS ) ? type_rel :
-    (miinst.opcode==MIOP_JNE) ? type_rel :
-    (miinst.opcode==MIOP_JNP) ? type_rel :
-    (miinst.opcode==MIOP_JNS) ? type_rel :
-    (miinst.opcode==MIOP_JNO) ? type_rel :
+    (miinst.op==MIOP_JA ) ? type_rel :
+    (miinst.op==MIOP_JAE) ? type_rel :
+    (miinst.op==MIOP_JB ) ? type_rel :
+    (miinst.op==MIOP_JBE) ? type_rel :
+    (miinst.op==MIOP_JC ) ? type_rel :
+    (miinst.op==MIOP_JE ) ? type_rel :
+    (miinst.op==MIOP_JG ) ? type_rel :
+    (miinst.op==MIOP_JG ) ? type_rel :
+    (miinst.op==MIOP_JL ) ? type_rel :
+    (miinst.op==MIOP_JLE) ? type_rel :
+    (miinst.op==MIOP_JO ) ? type_rel :
+    (miinst.op==MIOP_JP ) ? type_rel :
+    (miinst.op==MIOP_JS ) ? type_rel :
+    (miinst.op==MIOP_JNE) ? type_rel :
+    (miinst.op==MIOP_JNP) ? type_rel :
+    (miinst.op==MIOP_JNS) ? type_rel :
+    (miinst.op==MIOP_JNO) ? type_rel :
     // 条件分岐 JCX
-    (miinst.opcode==MIOP_JCX) ? type_rel : 0;
+    (miinst.op==MIOP_JCX) ? type_rel : 0;
 
   wire above   ,
        below   ,

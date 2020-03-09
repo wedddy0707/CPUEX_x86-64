@@ -34,7 +34,7 @@ module stall_control #(
     assign fwd_from[i] = fwd_sig_from[i].d|fwd_sig_from[i].s|fwd_sig_from[i].t;
   end
   for(i=0;i<LD;i=i+1) begin: generate_1
-    assign load_in [i] = (pos_miinst[i].opcode==MIOP_L);
+    assign load_in [i] = (pos_miinst[i].op==MIOP_L);
   end
   for(i=0;i<LD;i=i+1) begin: generate_2
     assign stall_due_to_load_in[i] = load_in[i] & fwd_from[i];

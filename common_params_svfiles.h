@@ -5,8 +5,23 @@ typedef logic [`IMM_W     -1:0] imm_t ;
 typedef logic [`ADDR_W    -1:0] addr_t;
 typedef logic [`REG_W/8   -1:0]   we_t;
 typedef logic [`NAME_W    -1:0] name_t;
-typedef logic [`REG_ADDR_W-1:0] rega_t;
 typedef logic [`REG_W     -1:0] reg_t ;
+
+typedef enum logic[`REG_ADDR_W-1:0] {
+  RAX = 0,
+  RCX = 1,
+  RDX = 2,
+  RBX = 3,
+  RSP = 4,
+  RBP = 5,
+  RSI = 6,
+  RDI = 7,
+
+  RIP = 16,
+  EFL = 17,
+  SCL = 18,
+  TMP = 19
+} rega_t;
 
 typedef enum {
   MIOP_ADD ,
@@ -78,13 +93,13 @@ typedef enum logic[1:0] {
 } bmd_t;
 
 typedef struct packed {
-  miop_t opcode;
-  rega_t d     ;
-  rega_t s     ;
-  rega_t t     ;
-  imm_t  imm   ;
-  bmd_t  bmd   ;
-  addr_t pc    ;
+  miop_t op ;
+  rega_t d  ;
+  rega_t s  ;
+  rega_t t  ;
+  imm_t  imm;
+  bmd_t  bmd;
+  addr_t pc ;
 } miinst_t;
 
 // In Fetch Phase
