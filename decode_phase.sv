@@ -15,12 +15,18 @@ module decode_phase #(
   input  logic    clk                          ,
   input  logic    rstn
 );
-  wire [`REG_W-1:0] dec_d;
-  wire [`REG_W-1:0] dec_s;
-  wire [`REG_W-1:0] dec_t;
+  reg_t dec_d;
+  reg_t dec_s;
+  reg_t dec_t;
 
-  miint_t nop;
-  assign  nop.op = MIOP_NOP;
+  miinst_t nop;
+  assign   nop.op  = MIOP_NOP;
+  assign   nop.d   =        0;
+  assign   nop.s   =        0;
+  assign   nop.t   =        0;
+  assign   nop.imm =        0;
+  assign   nop.bmd =        0;
+  assign   nop.pc  =        0;
 
   always @(posedge clk) begin
     de_reg.miinst <= (~rstn|flush|stall) ? nop:deq_miinst_head;
@@ -42,6 +48,29 @@ module decode_phase #(
   );
 endmodule
 
+module decode_phase_caught_miinst_queue (
+  parameter DEPTH = 2
+) (
+  input  miinst_t ren_miinst     ,
+  input     logic stall          ,
+  output miinst_t cmq_miinst_head,
+  output    logic valid          ,
+  input     logic clk            ,
+  input     logic rstn           //
+);
+  genvar i;
+  generate
+  begin
+    for(i=1;(2**i)<DEPTH;i=i+1);
+
+    localparam WIDTH = i;
+  end
+  endgenerate
+  
+  miinst_t queue [WIDTH-1:0];
+
+
+endmodule
 
 module decode_phase_value_decision #(
   parameter POST_DEC_LD = 3

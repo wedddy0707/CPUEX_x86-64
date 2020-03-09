@@ -143,6 +143,12 @@ typedef struct packed {
   fsubst_grp  grp; // グループ
 } fstate;
 
+typedef struct packed {
+  logic [      2:0] size;
+  logic [`MQ_N-1:0] to  ;
+  logic [      2:0] cnt ;
+} const_info_t;
+
 // For Register Usage Table
 typedef struct packed {
   logic from_gd;
