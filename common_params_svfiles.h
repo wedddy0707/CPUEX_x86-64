@@ -17,13 +17,20 @@ typedef enum logic[`REG_ADDR_W-1:0] {
   RSI = 6,
   RDI = 7,
 
-  RIP = 16,
-  EFL = 17,
-  SCL = 18,
-  TMP = 19
+  SS  = 16,
+  CS  = 17,
+  DS  = 18,
+  ES  = 19,
+  FS  = 20,
+  GS  = 21,
+  RIP = 22,
+  EFL = 23,
+  SCL = 24,
+  TMP = 25
 } rega_t;
 
 typedef enum {
+  MIOP_NOP = 0,
   MIOP_ADD ,
   MIOP_SUB ,
   MIOP_MUL ,
@@ -48,14 +55,8 @@ typedef enum {
   MIOP_SRAI,
   MIOP_ADCI,
   MIOP_SBBI,
-  MIOP_LB  ,
-  MIOP_LW  ,
-  MIOP_LD  ,
-  MIOP_LQ  ,
-  MIOP_SB  ,
-  MIOP_SW  ,
-  MIOP_SD  ,
-  MIOP_SQ  ,
+  MIOP_L   ,
+  MIOP_S   ,
   MIOP_J   ,
   MIOP_JR  ,
   MIOP_JA  ,
@@ -76,13 +77,10 @@ typedef enum {
   MIOP_JNS ,
   MIOP_JNO ,
   MIOP_JCX ,
-  MIOP_NOP ,
   MIOP_MOV ,
   MIOP_MOVI,
   MIOP_CMP ,
-  MIOP_CMPI,
-  MIOP_L,
-  MIOP_S
+  MIOP_CMPI
 } miop_t;
 
 typedef enum logic[1:0] {
