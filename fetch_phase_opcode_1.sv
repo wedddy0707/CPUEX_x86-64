@@ -27,11 +27,11 @@ module fetch_phase_modrm (
   always_comb begin
     // ELSEやDEFAULTを漏れなく書くのは怠すぎるので
     // 先頭にこれを書くことで妥協する
-    //state  <= state_as_src ;
-    //miinst <= miinst_as_src;
-    //name   <= name_as_src  ;
-    //imm    <= imm_as_src   ;
-    //disp   <= disp_as_src  ;
+    state  <= state_as_src ;
+    miinst <= miinst_as_src;
+    name   <= name_as_src  ;
+    imm    <= imm_as_src   ;
+    disp   <= disp_as_src  ;
     rex    <= rex_as_src   ;
     valid  <=             0;
     
@@ -248,6 +248,17 @@ module fetch_phase_modrm (
       end
       8'hca:begin end // Ret imm16 (Far  return) 無視
       8'hcb:begin end // Ret       (Far  return) 無視
+      /********************************
+      *     - In - Input from port
+      */
+      8'b1110010?: // In AL/AX/EAX,imm8
+      begin
+        name      <="IN";
+      end
+      8'b1110110?: // In AL/AX/EAX,DX
+      begin
+        name      <="IN";
+      end
       /*********************
       *     - Call
       *       - Grp5あり
