@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -8,7 +7,7 @@ module decode_phase #(
   input  miinst_t deq_miinst_head              ,
   output de_reg_t de_reg                       ,
   input  reg_t    gpr         [`REG_N     -1:0],
-  input  fws_t    fwd_sig_from[POST_DEC_LD-1:0],
+  input  fwd_t    fwd_sig_from[POST_DEC_LD-1:0],
   input  reg_t    fwd_val_from[POST_DEC_LD-1:0],
   input  logic    stall                        ,
   input  logic    flush                        ,
@@ -27,7 +26,7 @@ module decode_phase #(
   end
   
   decode_phase_value_decision #(
-    EW_LAYER
+    POST_DEC_LD
   ) decode_phase_value_decision_1 (
     .miinst      (deq_miinst_head),
     .gpr         (gpr            ),
@@ -37,30 +36,6 @@ module decode_phase #(
     .s           (dec_s          ),
     .t           (dec_t          )
   );
-endmodule
-
-module decode_phase_caught_miinst_queue #(
-  parameter DEPTH = 2
-) (
-  input  miinst_t ren_miinst     ,
-  input     logic stall          ,
-  output miinst_t cmq_miinst_head,
-  output    logic valid          ,
-  input     logic clk            ,
-  input     logic rstn           //
-);
-  genvar i;
-  generate
-  begin
-    for(i=1;(2**i)<DEPTH;i=i+1);
-
-    localparam WIDTH = i;
-  end
-  endgenerate
-  
-  miinst_t queue [WIDTH-1:0];
-
-
 endmodule
 
 module decode_phase_value_decision #(
@@ -86,13 +61,13 @@ module decode_phase_value_decision #(
   generate
   begin
     for(i=LD-1;i>=0;i=i-1) begin: iter_d
-      assign val_iter_d[i] = (fwd_sig_from[i].d) ? fwd_val_from[i] : val_iter[i+1];
+      assign val_iter_d[i] = (fwd_sig_from[i].d) ? fwd_val_from[i] : val_iter_d[i+1];
     end
     for(i=LD-1;i>=0;i=i-1) begin: iter_s
-      assign val_iter_s[i] = (fwd_sig_from[i].s) ? fwd_val_from[i] : val_iter[i+1];
+      assign val_iter_s[i] = (fwd_sig_from[i].s) ? fwd_val_from[i] : val_iter_s[i+1];
     end
     for(i=LD-1;i>=0;i=i-1) begin: iter_t
-      assign val_iter_t[i] = (fwd_sig_from[i].t) ? fwd_val_from[i] : val_iter[i+1];
+      assign val_iter_t[i] = (fwd_sig_from[i].t) ? fwd_val_from[i] : val_iter_t[i+1];
     end
   end
   endgenerate
@@ -102,6 +77,3 @@ module decode_phase_value_decision #(
   assign t = (miinst.t==RIP) ? reg_t'(miinst.pc+1):val_iter_t[0];
 
 endmodule
-
-
-`default_nettype wire

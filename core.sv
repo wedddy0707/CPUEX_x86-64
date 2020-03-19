@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 
 module core #(
@@ -38,9 +37,10 @@ module core #(
   reg_t    gpr       [`REG_N     -1:0];
   addr_t   pc_to_fet;
   fwd_t    fwd_sig_from[POST_DEC_LD-1:0];
-  reg_t    fwd_sig_from[POST_DEC_LD-1:0];
+  reg_t    fwd_val_from[POST_DEC_LD-1:0];
   logic    stall_phase;
   logic    stall_pc;
+  logic    flush;
 
   fetch_phase fetch_phase_1 (
     .inst  (inst       ),
@@ -64,7 +64,7 @@ module core #(
   );
 
   decode_phase #(
-    EW_LAYER
+    POST_DEC_LD
   ) decode_phase_1 (
     .deq_miinst_head(deq_miinst_head),
     .de_reg         (de_reg         ),
@@ -109,7 +109,7 @@ module core #(
 
   stall_control #(
     LOAD_LATEMCY,
-    EW_LAYER
+    POST_DEC_LD
   ) stall_control_1 (
     .dec_miinst   (deq_miinst_head),
     .pos_miinst   (pos_miinst     ),
@@ -122,5 +122,3 @@ module core #(
     .rstn         (rstn           )
   );
 endmodule
-
-`default_nettype wire

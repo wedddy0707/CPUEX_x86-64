@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -20,21 +19,30 @@ module alu (
 );
   genvar i;
 
-  reg_t d[`PRIMITIVE_CALC_N-1:0];
-  reg_t e[`PRIMITIVE_CALC_N-1:0];
+  reg_t pre_d[`PRIMITIVE_CALC_N-1:0];
+  reg_t pre_e[`PRIMITIVE_CALC_N-1:0];
 
-  miop_t op_alu;
-  reg_t   s_alu;
-  reg_t   t_alu;
+  miop_t  op_alu;
+  reg_t    s_alu;
+  reg_t    t_alu;
+  bmd_t  bmd_alu;
 
   always_comb begin
     case (op_alu)
-      MIOP_ADD:{d,eflags} <= {d[`PRIMITIVE_CALC_ADD],e[`PRIMITIVE_CALC_ADD]};
-      MIOP_AND:{d,eflags} <= {d[`PRIMITIVE_CALC_AND],e[`PRIMITIVE_CALC_AND]};
-      MIOP_OR :{d,eflags} <= {d[`PRIMITIVE_CALC_OR ],e[`PRIMITIVE_CALC_OR ]};
-      MIOP_XOR:{d,eflags} <= {d[`PRIMITIVE_CALC_XOR],e[`PRIMITIVE_CALC_XOR]};
-      MIOP_SLL:{d,eflags} <= {d[`PRIMITIVE_CALC_SLL],e[`PRIMITIVE_CALC_SLL]};
-      default :{d,eflags} <=  0;
+      MIOP_ADD:d<=pre_d[`PRIMITIVE_CALC_ADD];
+      MIOP_AND:d<=pre_d[`PRIMITIVE_CALC_AND];
+      MIOP_OR :d<=pre_d[`PRIMITIVE_CALC_OR ];
+      MIOP_XOR:d<=pre_d[`PRIMITIVE_CALC_XOR];
+      MIOP_SLL:d<=pre_d[`PRIMITIVE_CALC_SLL];
+      default :d<=0;
+    endcase
+    case (op_alu)
+      MIOP_ADD:eflags<=pre_e[`PRIMITIVE_CALC_ADD];
+      MIOP_AND:eflags<=pre_e[`PRIMITIVE_CALC_AND];
+      MIOP_OR :eflags<=pre_e[`PRIMITIVE_CALC_OR ];
+      MIOP_XOR:eflags<=pre_e[`PRIMITIVE_CALC_XOR];
+      MIOP_SLL:eflags<=pre_e[`PRIMITIVE_CALC_SLL];
+      default :eflags<=0;
     endcase
 
     case (op_alu)
@@ -48,8 +56,8 @@ module alu (
   begin
     for (i=0;i<`PRIMITIVE_CALC_N;i=i+1) begin: generate_primitive_calcs
       primitive_calc #(i) primitive_calc_inst (
-        .d            (d[i]         ),
-        .eflags       (e[i]         ),
+        .d            (pre_d[i]     ),
+        .eflags       (pre_e[i]     ),
         .eflags_as_src(eflags_as_src),
         .s            (s            ),
         .t            (t            ),
@@ -60,13 +68,14 @@ module alu (
   endgenerate
 
   reform_src_in_alu reform_src_in_alu_1 (
-    .miinst(miinst                   ),
-    .s     (s                        ),
-    .t     (t                        ),
-    .cf    (eflags_as_src[`EFLAGS_CF]),
-    .op_alu(op_alu                   ),
-    .s_alu (s_alu                    ),
-    .t_alu (t_alu                    )
+    .miinst (miinst                   ),
+    .s      (s                        ),
+    .t      (t                        ),
+    .cf     (eflags_as_src[`EFLAGS_CF]),
+    .op_alu (op_alu                   ),
+    .s_alu  (s_alu                    ),
+    .t_alu  (t_alu                    ),
+    .bmd_alu(bmd_alu                  )
   );
 endmodule
 
@@ -172,6 +181,8 @@ module primitive_calc #(
   input  reg_t t            ,
   input  bmd_t bmd          //
 );
+  genvar i;
+
   localparam ARITHMETIC =(CALC==`PRIMITIVE_CALC_ADD);
 
   logic [`REG_W:0] d_with_bits_extended;
@@ -240,6 +251,3 @@ module primitive_calc #(
   end
   endgenerate
 endmodule
-
-
-`default_nettype wire

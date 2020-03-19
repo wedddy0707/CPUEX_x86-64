@@ -1,13 +1,56 @@
-`include "common_params.h"
+`ifndef COMMON_PARAMS_SVFILES_H
+`define COMMON_PARAMS_SVFILES_H
 
-typedef logic [`INST_W    -1:0] inst_t;
-typedef logic [`IMM_W     -1:0] imm_t ;
-typedef logic [`ADDR_W    -1:0] addr_t;
-typedef logic [`REG_W/8   -1:0]   we_t;
-typedef logic [`NAME_W    -1:0] name_t;
-typedef logic [`REG_W     -1:0] reg_t ;
+`define NAME_W (6*8)
 
-typedef enum logic[`REG_ADDR_W-1:0] {
+`define ADDR_W 32
+`define INST_W  8
+
+`define REG_W       64
+`define REG_ADDR_W   5
+`define REG_N       (2**`REG_ADDR_W)
+`define MICRO_W      7
+`define MQ_N_W       3
+`define MQ_N        (2**(`MQ_N_W))
+`define DQ_N_W       4
+`define DQ_N        (2**(`DQ_N_W))
+`define IMM_W       32
+
+`define EFLAGS_CF   (`REG_W'd0)   // キャリ
+`define EFLAGS_PF   (`REG_W'd2)   // パリティ
+`define EFLAGS_AF   (`REG_W'd4)   // 調整
+`define EFLAGS_ZF   (`REG_W'd6)   // ゼロ
+`define EFLAGS_SF   (`REG_W'd7)   // 符号
+`define EFLAGS_TF   (`REG_W'd8)   // 
+`define EFLAGS_IF   (`REG_W'd9)
+`define EFLAGS_DF   (`REG_W'd10)
+`define EFLAGS_OF   (`REG_W'd11)
+`define EFLAGS_IOPL (`REG_W'd12)
+`define EFLAGS_NT   (`REG_W'd14)
+`define EFLAGS_RF   (`REG_W'd16)
+`define EFLAGS_VM   (`REG_W'd17)
+`define EFLAGS_AC   (`REG_W'd18)
+`define EFLAGS_VIF  (`REG_W'd19)
+`define EFLAGS_VIP  (`REG_W'd20)
+`define EFLAGS_ID   (`REG_W'd21)
+
+`define MQ_SCALE (`MQ_N_W'd0) // SIBに応じてシフトを実行する
+`define MQ_LOAD  (`MQ_N_W'd1) // ModR/Mに応じてLoad又は即値を$tempに保持
+`define MQ_ARITH (`MQ_N_W'd2) // 算術（論理）演算の実行
+`define MQ_STORE (`MQ_N_W'd3) // ModR/Mに応じてStore
+`define MQ_RSRV1 (`MQ_N_W'd4)
+`define MQ_RSRV2 (`MQ_N_W'd5)
+`define MQ_RSRV3 (`MQ_N_W'd6)
+`define MQ_RSRV4 (`MQ_N_W'd7)
+
+typedef logic [`INST_W-1:0] inst_t;
+typedef logic [`IMM_W -1:0] imm_t ;
+typedef logic [`ADDR_W-1:0] addr_t;
+typedef logic [        7:0]   we_t;
+typedef logic [`NAME_W-1:0] name_t;
+typedef logic [`REG_W -1:0] reg_t ;
+
+typedef enum logic[`REG_ADDR_W:0] {
   RAX = 0,
   RCX = 1,
   RDX = 2,
@@ -80,7 +123,9 @@ typedef enum {
   MIOP_MOV ,
   MIOP_MOVI,
   MIOP_CMP ,
-  MIOP_CMPI
+  MIOP_CMPI,
+  MIOP_TEST,
+  MIOP_TESTI
 } miop_t;
 
 typedef enum logic[1:0] {
@@ -216,13 +261,13 @@ end
 endfunction
 
 function miinst_t make_miinst(
-  input miop_t opcode,
-  input rega_t d,
-  input rega_t s,
-  input rega_t t,
-  input imm_t  imm,
-  input bmd_t  bmd,
-  input addr_t pc
+  input miop_t opcode = MIOP_NOP  ,
+  input rega_t d      = TMP       ,
+  input rega_t s      = TMP       ,
+  input rega_t t      = TMP       ,
+  input imm_t  imm    = imm_t'(0) ,
+  input bmd_t  bmd    = BMD_32    ,
+  input addr_t pc     = addr_t'(0)
 );
 begin
   make_miinst.op  <= opcode;
@@ -237,71 +282,65 @@ endfunction
 
 function miinst_t load_on_pop (input rega_t dest,input addr_t pc);
 begin
-  load_on_pop<=make_miinst(MIOP_L,dest,RSP,0,0,BMD_64,pc);
+  load_on_pop <= make_miinst(MIOP_L,dest,RSP,,,BMD_64,pc);
 end
 endfunction
 
 function miinst_t addi_on_pop(input addr_t pc);
 begin
-  addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W'(8),BMD_64,pc);
+  addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(8),BMD_64,pc);
 end
 endfunction
 
 function miinst_t addi_on_push(input addr_t pc);
 begin
-  addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W'(signed'(-8)),BMD_64,pc);
+  addi_on_push<=make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(signed'(-8)),BMD_64,pc);
 end
 endfunction
 
 function miinst_t store_on_push(input rega_t dest,input addr_t pc);
 begin
-  load_on_pop<=make_miinst(MIOP_S,dest,RSP,0,0,BMD_64,pc);
+  store_on_push<=make_miinst(MIOP_S,dest,RSP,,,BMD_64,pc);
 end
 endfunction
 
 function miinst_t pre_jcc (input [3:0] lower_bits_of_inst,input addr_t pc);
 begin
   case (lower_bits_of_inst)
-    4'h0   :pre_jcc <= make_miinst(MIOP_JO ,0,0,0,0,BMD_32,pc);
-    4'h1   :pre_jcc <= make_miinst(MIOP_JNO,0,0,0,0,BMD_32,pc);
-    4'h2   :pre_jcc <= make_miinst(MIOP_JB ,0,0,0,0,BMD_32,pc);
-    4'h3   :pre_jcc <= make_miinst(MIOP_JAE,0,0,0,0,BMD_32,pc);
-    4'h4   :pre_jcc <= make_miinst(MIOP_JE ,0,0,0,0,BMD_32,pc);
-    4'h5   :pre_jcc <= make_miinst(MIOP_JNE,0,0,0,0,BMD_32,pc);
-    4'h6   :pre_jcc <= make_miinst(MIOP_JBE,0,0,0,0,BMD_32,pc);
-    4'h7   :pre_jcc <= make_miinst(MIOP_JA ,0,0,0,0,BMD_32,pc);
-    4'h8   :pre_jcc <= make_miinst(MIOP_JS ,0,0,0,0,BMD_32,pc);
-    4'h9   :pre_jcc <= make_miinst(MIOP_JNS,0,0,0,0,BMD_32,pc);
-    4'ha   :pre_jcc <= make_miinst(MIOP_JP ,0,0,0,0,BMD_32,pc);
-    4'hb   :pre_jcc <= make_miinst(MIOP_JNP,0,0,0,0,BMD_32,pc);
-    4'hc   :pre_jcc <= make_miinst(MIOP_JL ,0,0,0,0,BMD_32,pc);
-    4'hd   :pre_jcc <= make_miinst(MIOP_JGE,0,0,0,0,BMD_32,pc);
-    4'he   :pre_jcc <= make_miinst(MIOP_JLE,0,0,0,0,BMD_32,pc);
-    default:pre_jcc <= make_miinst(MIOP_JG ,0,0,0,0,BMD_32,pc);
+    4'h0   :pre_jcc <= make_miinst(MIOP_JO ,,,,,BMD_32,pc);
+    4'h1   :pre_jcc <= make_miinst(MIOP_JNO,,,,,BMD_32,pc);
+    4'h2   :pre_jcc <= make_miinst(MIOP_JB ,,,,,BMD_32,pc);
+    4'h3   :pre_jcc <= make_miinst(MIOP_JAE,,,,,BMD_32,pc);
+    4'h4   :pre_jcc <= make_miinst(MIOP_JE ,,,,,BMD_32,pc);
+    4'h5   :pre_jcc <= make_miinst(MIOP_JNE,,,,,BMD_32,pc);
+    4'h6   :pre_jcc <= make_miinst(MIOP_JBE,,,,,BMD_32,pc);
+    4'h7   :pre_jcc <= make_miinst(MIOP_JA ,,,,,BMD_32,pc);
+    4'h8   :pre_jcc <= make_miinst(MIOP_JS ,,,,,BMD_32,pc);
+    4'h9   :pre_jcc <= make_miinst(MIOP_JNS,,,,,BMD_32,pc);
+    4'ha   :pre_jcc <= make_miinst(MIOP_JP ,,,,,BMD_32,pc);
+    4'hb   :pre_jcc <= make_miinst(MIOP_JNP,,,,,BMD_32,pc);
+    4'hc   :pre_jcc <= make_miinst(MIOP_JL ,,,,,BMD_32,pc);
+    4'hd   :pre_jcc <= make_miinst(MIOP_JGE,,,,,BMD_32,pc);
+    4'he   :pre_jcc <= make_miinst(MIOP_JLE,,,,,BMD_32,pc);
+    default:pre_jcc <= make_miinst(MIOP_JG ,,,,,BMD_32,pc);
   endcase
 end
 endfunction
 
 function miinst_t jr(input rega_t d,input addr_t pc);
 begin
-  jr <= make_miinst(MIOP_JR,d,0,0,0,BMD_32,pc);
+  jr <= make_miinst(MIOP_JR,d,,,,BMD_32,pc);
 end
 endfunction
 
 function miinst_t nop(input addr_t pc);
 begin
-  nop.op  <= MIOP_NOP;
-  nop.d   <=        0;
-  nop.s   <=        0;
-  nop.t   <=        0;
-  nop.imm <=        0;
-  nop.bmd <=        0;
-  nop.pc  <=       pc;
+  nop <= make_miinst(,,,,,,pc);
 end
 endfunction
 
 function fstate make_state(
-  input fsust_obj  o,
+  input fsubst_obj o,
   input fsubst_dst d,
   input fsubst_grp g
 );
@@ -312,3 +351,4 @@ begin
 end
 endfunction
 
+`endif

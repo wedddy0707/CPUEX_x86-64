@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 
 module register_usage_table (
@@ -116,14 +115,8 @@ module instruction_name_by_ascii (
     (op==MIOP_SLLI ) ? "SLLI" :
     (op==MIOP_SRLI ) ? "SRLI" :
     (op==MIOP_SRAI ) ? "SRAI" :
-    (op==MIOP_LB   ) ? "LB  " :
-    (op==MIOP_LW   ) ? "LW  " :
-    (op==MIOP_LD   ) ? "LD  " :
-    (op==MIOP_LQ   ) ? "LQ  " :
-    (op==MIOP_SB   ) ? "SB  " :
-    (op==MIOP_SW   ) ? "SW  " :
-    (op==MIOP_SD   ) ? "SD  " :
-    (op==MIOP_SQ   ) ? "SQ  " :
+    (op==MIOP_L    ) ? "LQ  " :
+    (op==MIOP_S    ) ? "SB  " :
     (op==MIOP_J    ) ? "J   " :
     (op==MIOP_JR   ) ? "JR  " :
     (op==MIOP_JA   ) ? "JA  " :
@@ -227,7 +220,7 @@ module trip_assertion #(
   input  logic rstn    //
 );
   integer i;
-  reg     tunnel[LATENCY-1:0];
+  reg [LATENCY-1:0]tunnel;
   assign  assertion = tunnel[LATENCY-1];
 
   always @(posedge clk) begin
@@ -241,5 +234,3 @@ module trip_assertion #(
     end 
   end
 endmodule
-
-`default_nettype wire
