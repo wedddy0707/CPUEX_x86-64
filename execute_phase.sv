@@ -1,5 +1,5 @@
-`default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module execute_phase #(
   parameter LOAD_LATENCY = 1,
@@ -121,6 +121,7 @@ module execute_memory_access (
         (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0] :
         (miinst.bmd ==BMD_32) ? 8'h0f << a[2:0] :
         (miinst.bmd ==BMD_64) ? 8'hff           : 8'h00;
+    end
   end
 endmodule
 

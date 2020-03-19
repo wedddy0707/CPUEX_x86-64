@@ -48,7 +48,7 @@ module write_back_phase #(
     .rut      (ew_rut       )
   );
 
-  pc_queue      #(LOAD_LATENCY) pc_queue_inst (.(*));
+  pc_queue      #(LOAD_LATENCY) pc_queue_inst (.*);
   flush_control #(LOAD_LATENCY) flush_control_inst (
     .trigger(ew_sig.be),
     .flush  (flush    ),

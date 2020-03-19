@@ -49,22 +49,22 @@ module fetch_phase_modrm (
         miinst[`MQ_ARITH].t  <= rega_t'({rex_r,inst[5:3]});
         miinst[`MQ_STORE].op <= MIOP_S;
         miinst[`MQ_STORE].d  <= TMP;
-        miinst[`MQ_STORE].s  <=`rega_t'({rex_b,inst[2:0]});
+        miinst[`MQ_STORE].s  <= rega_t'({rex_b,inst[2:0]});
         case (state_as_src.grp)
           GRP_0: // = どのグループにも属さない
           begin
             case (miinst_as_src[`MQ_ARITH])
-              MIOP_TEST :miinst[`MQ_STORE] <= nop;
-              MIOP_TESTI:miinst[`MQ_STORE] <= nop;
-              MIOP_CMP  :miinst[`MQ_STORE] <= nop;
-              MIOP_CMPI :miinst[`MQ_STORE] <= nop;
+              MIOP_TEST :miinst[`MQ_STORE] <= nop(pc);
+              MIOP_TESTI:miinst[`MQ_STORE] <= nop(pc);
+              MIOP_CMP  :miinst[`MQ_STORE] <= nop(pc);
+              MIOP_CMPI :miinst[`MQ_STORE] <= nop(pc);
               default   :begin end
             endcase
           end
           GRP_1:
           begin
             if (inst[5:3]==3'd7) begin
-              miinst[`MQ_STORE] <= nop;
+              miinst[`MQ_STORE] <= nop(pc);
             end
             case (inst[5:3])
               3'd0   :begin miinst[`MQ_ARITH].op <=MIOP_ADDI;name<="ADD";end
@@ -83,7 +83,7 @@ module fetch_phase_modrm (
           end
           GRP_5:
           begin
-             miinst[`MQ_STORE]  <= nop;
+             miinst[`MQ_STORE]  <= nop(pc);
             case (inst[5:3])
               3'd2:
               begin
@@ -108,9 +108,9 @@ module fetch_phase_modrm (
           end
           GRP_11:
           begin
-            miinst[`MQ_LOAD ] <= nop;
+            miinst[`MQ_LOAD ] <= nop(pc);
             case (inst[5:3])
-              3'd0   :begin miinst[`MQ_ARITH]<=`MICRO_MOVI;name<="MOV";end
+              3'd0   :begin miinst[`MQ_ARITH]<= MIOP_MOVI;name<="MOV";end
               default:begin end
             endcase
           end
@@ -159,17 +159,17 @@ module fetch_phase_modrm (
       2'b01:// [---]+disp8
       begin
         disp.size <= 1;
-        state.obj <= (inst[2:0]==3'100)? SIB:DISPLACEMENT;
+        state.obj <= (inst[2:0]==3'b100)? SIB:DISPLACEMENT;
       end
       2'b10:// [---]+disp32
       begin
         disp.size <= 4;
-        state.obj <= (inst[2:0]==3'100)? SIB:DISPLACEMENT;
+        state.obj <= (inst[2:0]==3'b100)? SIB:DISPLACEMENT;
       end
       default: /* = 2'b11 */
       begin
-        miinst[`MQ_LOAD ]   <= nop;
-        miinst[`MQ_STORE]   <= nop;
+        miinst[`MQ_LOAD ]   <= nop(pc);
+        miinst[`MQ_STORE]   <= nop(pc);
         state.obj           <= (imm_as_src.size==0)? OPCODE_1:IMMEDIATE;
         valid               <= (imm_as_src.size==0);
 
@@ -187,101 +187,6 @@ module fetch_phase_modrm (
       end
     endcase
   end
-  
-  function bmd_t bmd_det (
-    input cond_bmd_08,
-    input cond_bmd_64
-  );
-  begin
-    bmd_det = (cond_bmd_08) ? BMD_08:
-              (cond_bmd_64) ? BMD_64:
-                              BMD_32;
-  end
-  endfunction
-
-  function [3:0] imm_size_det (
-    input cond_one_byte,
-    input cond_four_byte
-  );
-  begin
-    imm_size_det = (cond_one_byte ) ? 1:
-                   (cond_four_byte) ? 4:
-                                      0;
-  end
-  endfunction
-  
-  function miinst_t make_miinst(
-    input miop_t opcode,
-    input rega_t d,
-    input rega_t s,
-    input rega_t t,
-    input imm_t  imm.
-    input bmd_t  bmd,
-    input addr_t pc
-  );
-  begin
-    make_miinst.op  <= opcode;
-    make_miinst.d   <= d;
-    make_miinst.s   <= s;
-    make_miinst.t   <= t;
-    make_miinst.imm <= imm;
-    make_miinst.bmd <= bmd;
-    make_miinst.pc  <= pc;
-  end
-  endfunction
-  
-  function miinst_t load_on_pop (input rega_t dest,input addr_t pc);
-  begin
-    load_on_pop<=make_miinst(MIOP_L,dest,RSP,0,0,BMD_64,pc);
-  end
-  endfunction
-
-  function miinst_t addi_on_pop(input addr_t pc);
-  begin
-    addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W(8),BMD_64,pc);
-  end
-  endfunction
-  
-  function miinst_t addi_on_push(input addr_t pc);
-  begin
-    addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,`IMM_W(signed'(-8)),BMD_64,pc);
-  end
-  endfunction
-  
-  function miinst_t store_on_push(input rega_t dest,input addr_t pc);
-  begin
-    load_on_pop<=make_miinst(MIOP_S,dest,RSP,0,0,BMD_64,pc);
-  end
-  endfunction
-
-  function miinst_t pre_jcc (input [3:0] lower_bits_of_inst,input addr_t pc);
-  begin
-    case (lower_bits_of_inst)
-      4'h0   :pre_jcc <= make_miinst(MIOP_JO ,0,0,0,0,BMD_32,pc);
-      4'h1   :pre_jcc <= make_miinst(MIOP_JNO,0,0,0,0,BMD_32,pc);
-      4'h2   :pre_jcc <= make_miinst(MIOP_JB ,0,0,0,0,BMD_32,pc);
-      4'h3   :pre_jcc <= make_miinst(MIOP_JAE,0,0,0,0,BMD_32,pc);
-      4'h4   :pre_jcc <= make_miinst(MIOP_JE ,0,0,0,0,BMD_32,pc);
-      4'h5   :pre_jcc <= make_miinst(MIOP_JNE,0,0,0,0,BMD_32,pc);
-      4'h6   :pre_jcc <= make_miinst(MIOP_JBE,0,0,0,0,BMD_32,pc);
-      4'h7   :pre_jcc <= make_miinst(MIOP_JA ,0,0,0,0,BMD_32,pc);
-      4'h8   :pre_jcc <= make_miinst(MIOP_JS ,0,0,0,0,BMD_32,pc);
-      4'h9   :pre_jcc <= make_miinst(MIOP_JNS,0,0,0,0,BMD_32,pc);
-      4'ha   :pre_jcc <= make_miinst(MIOP_JP ,0,0,0,0,BMD_32,pc);
-      4'hb   :pre_jcc <= make_miinst(MIOP_JNP,0,0,0,0,BMD_32,pc);
-      4'hc   :pre_jcc <= make_miinst(MIOP_JL ,0,0,0,0,BMD_32,pc);
-      4'hd   :pre_jcc <= make_miinst(MIOP_JGE,0,0,0,0,BMD_32,pc);
-      4'he   :pre_jcc <= make_miinst(MIOP_JLE,0,0,0,0,BMD_32,pc);
-      default:pre_jcc <= make_miinst(MIOP_JG ,0,0,0,0,BMD_32,pc);
-    endcase
-  end
-  endfunction
-
-  function miinst_t jr(input rega_t d,input addr_t pc);
-  begin
-    jr <= make_miinst(MIOP_JR,d,0,0,0,BMD_32,pc);
-  end
-  endfunction
 endmodule
 
 `default_nettype wire

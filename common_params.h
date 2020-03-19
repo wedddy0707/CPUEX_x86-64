@@ -14,7 +14,7 @@
 `define MQ_N_W       3
 `define MQ_N        (2**(`MQ_N_W))
 `define DQ_N_W       4
-`define DQ_N        (2**(`DEC_Q_N_W))
+`define DQ_N        (2**(`DQ_N_W))
 `define IMM_W       32
 
 `define EFLAGS_CF   (`REG_W'd0)   // キャリ
@@ -35,14 +35,14 @@
 `define EFLAGS_VIP  (`REG_W'd20)
 `define EFLAGS_ID   (`REG_W'd21)
 
-`define MQ_SCALE (`MICRO_Q_N_W'd0) // SIBに応じてシフトを実行する
-`define MQ_LOAD  (`MICRO_Q_N_W'd1) // ModR/Mに応じてLoad又は即値を$tempに保持
-`define MQ_ARITH (`MICRO_Q_N_W'd2) // 算術（論理）演算の実行
-`define MQ_STORE (`MICRO_Q_N_W'd3) // ModR/Mに応じてStore
-`define MQ_RSRV1 (`MICRO_Q_N_W'd4)
-`define MQ_RSRV2 (`MICRO_Q_N_W'd5)
-`define MQ_RSRV3 (`MICRO_Q_N_W'd6)
-`define MQ_RSRV4 (`MICRO_Q_N_W'd7)
+`define MQ_SCALE (`MQ_N_W'd0) // SIBに応じてシフトを実行する
+`define MQ_LOAD  (`MQ_N_W'd1) // ModR/Mに応じてLoad又は即値を$tempに保持
+`define MQ_ARITH (`MQ_N_W'd2) // 算術（論理）演算の実行
+`define MQ_STORE (`MQ_N_W'd3) // ModR/Mに応じてStore
+`define MQ_RSRV1 (`MQ_N_W'd4)
+`define MQ_RSRV2 (`MQ_N_W'd5)
+`define MQ_RSRV3 (`MQ_N_W'd6)
+`define MQ_RSRV4 (`MQ_N_W'd7)
 
 
 `endif

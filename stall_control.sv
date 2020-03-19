@@ -21,7 +21,7 @@ module stall_control #(
   forward_control #(
     POST_DEC_LD
   ) forward_control_1 (
-    .(*)
+    .*
   );
 
   wire [LD-1:0] fwd_from            ;

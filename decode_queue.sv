@@ -1,5 +1,5 @@
-`default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module decode_queue (
   input  miinst_t fet_miinst [`MQ_N-1:0],
@@ -67,4 +67,3 @@ module decode_queue (
     end
   end
 endmodule
-`default_nettype wire
