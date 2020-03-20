@@ -240,7 +240,18 @@ typedef struct packed {
   addr_t   bd;
 } ew_sig_t;
 
+// For I/O
+typedef struct packed {
+  logic  in_interrupt;
+  logic out_interrupt;
+} io_sig_t;
 
+typedef struct packed {
+  logic [31:0] data;
+  logic        req;
+} out_req_t;
+
+// Functions
 function bmd_t bmd_det (
   input cond_bmd_08,
   input cond_bmd_64
