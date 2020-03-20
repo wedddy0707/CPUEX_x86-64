@@ -10,21 +10,11 @@ module core #(
   output reg [`DATA_W  -1:0] st_data,
   output reg [`ADDR_W  -1:0] mem_addr,
   output reg [`ADDR_W  -1:0] pc_to_mem,
-  output reg [`DATA_W/8-1:0] we,
+  output reg [          7:0] we,
   input wire                 clk,
   input wire                 rstn
 );
-  localparam POST_DEC_LD = LOAD_LATEMCY+2;
-
-  inst_t inst =
-    (pc_to_fet[2:0]==3'b111) ? ld_data_for_inst[ 7: 0] :
-    (pc_to_fet[2:0]==3'b110) ? ld_data_for_inst[15: 8] :
-    (pc_to_fet[2:0]==3'b101) ? ld_data_for_inst[23:16] :
-    (pc_to_fet[2:0]==3'b100) ? ld_data_for_inst[31:24] :
-    (pc_to_fet[2:0]==3'b011) ? ld_data_for_inst[39:32] :
-    (pc_to_fet[2:0]==3'b010) ? ld_data_for_inst[47:40] :
-    (pc_to_fet[2:0]==3'b001) ? ld_data_for_inst[55:48] :
-                               ld_data_for_inst[63:56] ;
+  localparam POST_DEC_LD = LOAD_LATEMCY+3;
 
   miinst_t fet_miinst [`MQ_N-1:0];
   logic    fet_valid             ;
@@ -41,6 +31,36 @@ module core #(
   logic    stall_phase;
   logic    stall_pc;
   logic    flush;
+
+  name_t name [POST_DEC_LD-1+1:0];
+
+  genvar i;
+  instruction_name_by_ascii inba_dec (
+    .miinst(deq_miinst_head),
+    .name(name[0])
+  );
+  generate
+  begin
+    for(i=0;i<POST_DEC_LD;i=i+1) begin : debug_no_tameni
+      instruction_name_by_ascii inba_pos (
+        .miinst(pos_miinst[i]),
+        .name(name[i+1])
+      );
+    end
+  end
+  endgenerate
+  
+  assign pc_to_mem = gpr[RIP][31:3];
+  inst_t inst;
+  assign inst =
+    (pc_to_fet[2:0]==3'b111) ? ld_data_for_inst[ 7: 0]:
+    (pc_to_fet[2:0]==3'b110) ? ld_data_for_inst[15: 8]:
+    (pc_to_fet[2:0]==3'b101) ? ld_data_for_inst[23:16]:
+    (pc_to_fet[2:0]==3'b100) ? ld_data_for_inst[31:24]:
+    (pc_to_fet[2:0]==3'b011) ? ld_data_for_inst[39:32]:
+    (pc_to_fet[2:0]==3'b010) ? ld_data_for_inst[47:40]:
+    (pc_to_fet[2:0]==3'b001) ? ld_data_for_inst[55:48]:
+                               ld_data_for_inst[63:56];
 
   fetch_phase fetch_phase_1 (
     .inst  (inst       ),
@@ -89,6 +109,7 @@ module core #(
     .mem_addr  (mem_addr  ),
     .st_data   (st_data   ),
     .we        (we        ),
+    .ld_data   (ld_data   ),
     .clk       (clk       ),
     .rstn      (rstn      )
   );
@@ -99,7 +120,6 @@ module core #(
     .ew_reg   (ew_reg   ),
     .ew_sig   (ew_sig   ),
     .gpr      (gpr      ),
-    .pc_to_mem(pc_to_mem),
     .pc_to_fet(pc_to_fet),
     .stall_pc (stall_pc ),
     .flush    (flush    ),

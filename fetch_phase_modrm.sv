@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -188,5 +187,3 @@ module fetch_phase_modrm (
     endcase
   end
 endmodule
-
-`default_nettype wire

@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -68,5 +67,3 @@ module fetch_phase_opcode_2 (
     endcase
   end
 endmodule
-
-`default_nettype wire

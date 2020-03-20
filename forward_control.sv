@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -50,5 +49,3 @@ module forward_control #(
   end
   endgenerate
 endmodule
-
-`default_nettype wire

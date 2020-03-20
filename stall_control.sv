@@ -1,5 +1,5 @@
-`default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module stall_control #(
   parameter LOAD_LATENCY = 1,
@@ -41,16 +41,14 @@ module stall_control #(
   end
   endgenerate
 
-  assign stall_pc = stall_due_to_load;
+  assign stall_pc = |stall_due_to_load_in;
 
   echo_assertion #(
     LOAD_LATENCY, 1
   ) echo_assertion_stall (
-    .trigger  (stall_due_to_load),
+    .trigger  (stall_pc   ),
     .assertion(stall_phase),
     .clk      (clk),
     .rstn     (rstn)
   );
 endmodule
-
-`default_nettype wire

@@ -231,6 +231,7 @@ typedef struct packed {
 } ew_reg_t;
 
 typedef struct packed {
+  reg_t    d;
   logic    eflags_update;
   reg_t    eflags;
   logic    be;
@@ -270,84 +271,84 @@ function miinst_t make_miinst(
   input addr_t pc     = addr_t'(0)
 );
 begin
-  make_miinst.op  <= opcode;
-  make_miinst.d   <= d;
-  make_miinst.s   <= s;
-  make_miinst.t   <= t;
-  make_miinst.imm <= imm;
-  make_miinst.bmd <= bmd;
-  make_miinst.pc  <= pc;
+  make_miinst.op  = opcode;
+  make_miinst.d   = d;
+  make_miinst.s   = s;
+  make_miinst.t   = t;
+  make_miinst.imm = imm;
+  make_miinst.bmd = bmd;
+  make_miinst.pc  = pc;
 end
 endfunction
 
 function miinst_t load_on_pop (input rega_t dest,input addr_t pc);
 begin
-  load_on_pop <= make_miinst(MIOP_L,dest,RSP,,,BMD_64,pc);
+  load_on_pop = make_miinst(MIOP_L,dest,RSP,,,BMD_64,pc);
 end
 endfunction
 
 function miinst_t addi_on_pop(input addr_t pc);
 begin
-  addi_on_pop<=make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(8),BMD_64,pc);
+  addi_on_pop = make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(8),BMD_64,pc);
 end
 endfunction
 
 function miinst_t addi_on_push(input addr_t pc);
 begin
-  addi_on_push<=make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(signed'(-8)),BMD_64,pc);
+  addi_on_push = make_miinst(MIOP_ADDI,RSP,RSP,,imm_t'(signed'(-8)),BMD_64,pc);
 end
 endfunction
 
 function miinst_t store_on_push(input rega_t dest,input addr_t pc);
 begin
-  store_on_push<=make_miinst(MIOP_S,dest,RSP,,,BMD_64,pc);
+  store_on_push = make_miinst(MIOP_S,dest,RSP,,,BMD_64,pc);
 end
 endfunction
 
 function miinst_t pre_jcc (input [3:0] lower_bits_of_inst,input addr_t pc);
 begin
   case (lower_bits_of_inst)
-    4'h0   :pre_jcc <= make_miinst(MIOP_JO ,,,,,BMD_32,pc);
-    4'h1   :pre_jcc <= make_miinst(MIOP_JNO,,,,,BMD_32,pc);
-    4'h2   :pre_jcc <= make_miinst(MIOP_JB ,,,,,BMD_32,pc);
-    4'h3   :pre_jcc <= make_miinst(MIOP_JAE,,,,,BMD_32,pc);
-    4'h4   :pre_jcc <= make_miinst(MIOP_JE ,,,,,BMD_32,pc);
-    4'h5   :pre_jcc <= make_miinst(MIOP_JNE,,,,,BMD_32,pc);
-    4'h6   :pre_jcc <= make_miinst(MIOP_JBE,,,,,BMD_32,pc);
-    4'h7   :pre_jcc <= make_miinst(MIOP_JA ,,,,,BMD_32,pc);
-    4'h8   :pre_jcc <= make_miinst(MIOP_JS ,,,,,BMD_32,pc);
-    4'h9   :pre_jcc <= make_miinst(MIOP_JNS,,,,,BMD_32,pc);
-    4'ha   :pre_jcc <= make_miinst(MIOP_JP ,,,,,BMD_32,pc);
-    4'hb   :pre_jcc <= make_miinst(MIOP_JNP,,,,,BMD_32,pc);
-    4'hc   :pre_jcc <= make_miinst(MIOP_JL ,,,,,BMD_32,pc);
-    4'hd   :pre_jcc <= make_miinst(MIOP_JGE,,,,,BMD_32,pc);
-    4'he   :pre_jcc <= make_miinst(MIOP_JLE,,,,,BMD_32,pc);
-    default:pre_jcc <= make_miinst(MIOP_JG ,,,,,BMD_32,pc);
+    4'h0   :pre_jcc = make_miinst(MIOP_JO ,,,,,BMD_32,pc);
+    4'h1   :pre_jcc = make_miinst(MIOP_JNO,,,,,BMD_32,pc);
+    4'h2   :pre_jcc = make_miinst(MIOP_JB ,,,,,BMD_32,pc);
+    4'h3   :pre_jcc = make_miinst(MIOP_JAE,,,,,BMD_32,pc);
+    4'h4   :pre_jcc = make_miinst(MIOP_JE ,,,,,BMD_32,pc);
+    4'h5   :pre_jcc = make_miinst(MIOP_JNE,,,,,BMD_32,pc);
+    4'h6   :pre_jcc = make_miinst(MIOP_JBE,,,,,BMD_32,pc);
+    4'h7   :pre_jcc = make_miinst(MIOP_JA ,,,,,BMD_32,pc);
+    4'h8   :pre_jcc = make_miinst(MIOP_JS ,,,,,BMD_32,pc);
+    4'h9   :pre_jcc = make_miinst(MIOP_JNS,,,,,BMD_32,pc);
+    4'ha   :pre_jcc = make_miinst(MIOP_JP ,,,,,BMD_32,pc);
+    4'hb   :pre_jcc = make_miinst(MIOP_JNP,,,,,BMD_32,pc);
+    4'hc   :pre_jcc = make_miinst(MIOP_JL ,,,,,BMD_32,pc);
+    4'hd   :pre_jcc = make_miinst(MIOP_JGE,,,,,BMD_32,pc);
+    4'he   :pre_jcc = make_miinst(MIOP_JLE,,,,,BMD_32,pc);
+    default:pre_jcc = make_miinst(MIOP_JG ,,,,,BMD_32,pc);
   endcase
 end
 endfunction
 
 function miinst_t jr(input rega_t d,input addr_t pc);
 begin
-  jr <= make_miinst(MIOP_JR,d,,,,BMD_32,pc);
+  jr = make_miinst(MIOP_JR,d,,,,BMD_32,pc);
 end
 endfunction
 
 function miinst_t nop(input addr_t pc);
 begin
-  nop <= make_miinst(,,,,,,pc);
+  nop = make_miinst(,,,,,,pc);
 end
 endfunction
 
 function fstate make_state(
-  input fsubst_obj o,
-  input fsubst_dst d,
-  input fsubst_grp g
+  input fsubst_obj o = OPCODE_1,
+  input fsubst_dst d = DST_RM  ,
+  input fsubst_grp g = GRP_0
 );
 begin
-  make_state.obj  <= o;
-  make_state.dst  <= d;
-  make_state.grp  <= g;
+  make_state.obj = o;
+  make_state.dst = d;
+  make_state.grp = g;
 end
 endfunction
 

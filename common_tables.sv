@@ -86,63 +86,63 @@ module register_usage_table (
 endmodule
 
 module instruction_name_by_ascii (
-  input  miinst_t op  ,
+  input  miinst_t miinst,
   output   name_t name
 );
   assign name =
-    (op==MIOP_NOP  ) ? "NOP" :
-    (op==MIOP_ADD  ) ? "ADD" :
-    (op==MIOP_SUB  ) ? "SUB" :
-    (op==MIOP_ADC  ) ? "ADC" :
-    (op==MIOP_SBB  ) ? "SBB" :
-    (op==MIOP_MUL  ) ? "MUL" :
-    (op==MIOP_DIV  ) ? "DIV" :
-    (op==MIOP_AND  ) ? "AND" :
-    (op==MIOP_OR   ) ? "OR"  :
-    (op==MIOP_XOR  ) ? "XOR" :
-    (op==MIOP_SLL  ) ? "SLL" :
-    (op==MIOP_SRL  ) ? "SRL" :
-    (op==MIOP_SRA  ) ? "SRA" :
-    (op==MIOP_ADDI ) ? "ADDI" :
-    (op==MIOP_SUBI ) ? "SUBI" :
-    (op==MIOP_ADCI ) ? "ADCI" :
-    (op==MIOP_SBBI ) ? "SBBI" :
-    (op==MIOP_MULI ) ? "MULI" :
-    (op==MIOP_DIVI ) ? "DIVI" :
-    (op==MIOP_ANDI ) ? "ANDI" :
-    (op==MIOP_ORI  ) ? "ORI " :
-    (op==MIOP_XORI ) ? "XORI" :
-    (op==MIOP_SLLI ) ? "SLLI" :
-    (op==MIOP_SRLI ) ? "SRLI" :
-    (op==MIOP_SRAI ) ? "SRAI" :
-    (op==MIOP_L    ) ? "LQ  " :
-    (op==MIOP_S    ) ? "SB  " :
-    (op==MIOP_J    ) ? "J   " :
-    (op==MIOP_JR   ) ? "JR  " :
-    (op==MIOP_JA   ) ? "JA  " :
-    (op==MIOP_JAE  ) ? "JAE " :
-    (op==MIOP_JB   ) ? "JB  " :
-    (op==MIOP_JBE  ) ? "JBE " :
-    (op==MIOP_JC   ) ? "JC  " :
-    (op==MIOP_JE   ) ? "JE  " :
-    (op==MIOP_JG   ) ? "JG  " :
-    (op==MIOP_JGE  ) ? "JGE " :
-    (op==MIOP_JL   ) ? "JL  " :
-    (op==MIOP_JLE  ) ? "JLE " :
-    (op==MIOP_JO   ) ? "JO  " :
-    (op==MIOP_JP   ) ? "JP  " :
-    (op==MIOP_JS   ) ? "JS  " :
-    (op==MIOP_JNE  ) ? "JNE " :
-    (op==MIOP_JNP  ) ? "JNP " :
-    (op==MIOP_JNS  ) ? "JNS " :
-    (op==MIOP_JNO  ) ? "JNO " :
-    (op==MIOP_JCX  ) ? "JCX " :
-    (op==MIOP_MOV  ) ? "MOV " :
-    (op==MIOP_MOVI ) ? "MOVI" :
-    (op==MIOP_CMP  ) ? "CMP " :
-    (op==MIOP_CMPI ) ? "CMPI" :
-    (op==MIOP_TEST ) ? "TEST" :
-    (op==MIOP_TESTI) ? "TESTI" : "???";
+    (miinst.op==MIOP_NOP  ) ? "NOP" :
+    (miinst.op==MIOP_ADD  ) ? "ADD" :
+    (miinst.op==MIOP_SUB  ) ? "SUB" :
+    (miinst.op==MIOP_ADC  ) ? "ADC" :
+    (miinst.op==MIOP_SBB  ) ? "SBB" :
+    (miinst.op==MIOP_MUL  ) ? "MUL" :
+    (miinst.op==MIOP_DIV  ) ? "DIV" :
+    (miinst.op==MIOP_AND  ) ? "AND" :
+    (miinst.op==MIOP_OR   ) ? "OR"  :
+    (miinst.op==MIOP_XOR  ) ? "XOR" :
+    (miinst.op==MIOP_SLL  ) ? "SLL" :
+    (miinst.op==MIOP_SRL  ) ? "SRL" :
+    (miinst.op==MIOP_SRA  ) ? "SRA" :
+    (miinst.op==MIOP_ADDI ) ? "ADDI" :
+    (miinst.op==MIOP_SUBI ) ? "SUBI" :
+    (miinst.op==MIOP_ADCI ) ? "ADCI" :
+    (miinst.op==MIOP_SBBI ) ? "SBBI" :
+    (miinst.op==MIOP_MULI ) ? "MULI" :
+    (miinst.op==MIOP_DIVI ) ? "DIVI" :
+    (miinst.op==MIOP_ANDI ) ? "ANDI" :
+    (miinst.op==MIOP_ORI  ) ? "ORI " :
+    (miinst.op==MIOP_XORI ) ? "XORI" :
+    (miinst.op==MIOP_SLLI ) ? "SLLI" :
+    (miinst.op==MIOP_SRLI ) ? "SRLI" :
+    (miinst.op==MIOP_SRAI ) ? "SRAI" :
+    (miinst.op==MIOP_L    ) ? "LQ  " :
+    (miinst.op==MIOP_S    ) ? "SB  " :
+    (miinst.op==MIOP_J    ) ? "J   " :
+    (miinst.op==MIOP_JR   ) ? "JR  " :
+    (miinst.op==MIOP_JA   ) ? "JA  " :
+    (miinst.op==MIOP_JAE  ) ? "JAE " :
+    (miinst.op==MIOP_JB   ) ? "JB  " :
+    (miinst.op==MIOP_JBE  ) ? "JBE " :
+    (miinst.op==MIOP_JC   ) ? "JC  " :
+    (miinst.op==MIOP_JE   ) ? "JE  " :
+    (miinst.op==MIOP_JG   ) ? "JG  " :
+    (miinst.op==MIOP_JGE  ) ? "JGE " :
+    (miinst.op==MIOP_JL   ) ? "JL  " :
+    (miinst.op==MIOP_JLE  ) ? "JLE " :
+    (miinst.op==MIOP_JO   ) ? "JO  " :
+    (miinst.op==MIOP_JP   ) ? "JP  " :
+    (miinst.op==MIOP_JS   ) ? "JS  " :
+    (miinst.op==MIOP_JNE  ) ? "JNE " :
+    (miinst.op==MIOP_JNP  ) ? "JNP " :
+    (miinst.op==MIOP_JNS  ) ? "JNS " :
+    (miinst.op==MIOP_JNO  ) ? "JNO " :
+    (miinst.op==MIOP_JCX  ) ? "JCX " :
+    (miinst.op==MIOP_MOV  ) ? "MOV " :
+    (miinst.op==MIOP_MOVI ) ? "MOVI" :
+    (miinst.op==MIOP_CMP  ) ? "CMP " :
+    (miinst.op==MIOP_CMPI ) ? "CMPI" :
+    (miinst.op==MIOP_TEST ) ? "TEST" :
+    (miinst.op==MIOP_TESTI) ? "TESTI" : "???";
 endmodule
 
 /**********************************************

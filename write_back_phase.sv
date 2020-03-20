@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -10,7 +9,6 @@ module write_back_phase #(
   input  ew_reg_t ew_reg         ,
   input  ew_sig_t ew_sig         ,
   output    reg_t gpr[`REG_N-1:0],
-  output   addr_t pc_to_mem      ,
   output   addr_t pc_to_fet      ,
   input     logic stall_pc       ,
   output    logic flush          ,
@@ -18,7 +16,6 @@ module write_back_phase #(
   input     logic rstn           //
 );
   integer i;
-  assign pc_to_mem = gpr[RIP];
   rut_t ew_rut;
 
   always @(posedge clk) begin
@@ -39,7 +36,7 @@ module write_back_phase #(
       end
 
       gpr[RIP] <= ew_sig.be? ew_sig.bd :
-                        stall_pc ? pc_to_fet : gpr[RIP]+1 ;
+                  stall_pc ? pc_to_fet : gpr[RIP]+1 ;
     end
   end
 
@@ -48,7 +45,13 @@ module write_back_phase #(
     .rut      (ew_rut       )
   );
 
-  pc_queue      #(LOAD_LATENCY) pc_queue_inst (.*);
+  pc_queue      #(LOAD_LATENCY) pc_queue_inst (
+    .pc_to_mem  (addr_t'(gpr[RIP])),
+    .pc_to_fet  (pc_to_fet        ),
+    .stall_pc   (stall_pc         ),
+    .clk        (clk              ),
+    .rstn       (rstn             )
+  );
   flush_control #(LOAD_LATENCY) flush_control_inst (
     .trigger(ew_sig.be),
     .flush  (flush    ),
@@ -60,7 +63,7 @@ endmodule
 module pc_queue #(
   parameter LOAD_LATENCY = 1
 ) (
-  input   reg_t pc_to_mem,
+  input  addr_t pc_to_mem,
   output addr_t pc_to_fet,
   input   logic stall_pc ,
   input   logic clk      ,
@@ -100,4 +103,3 @@ module flush_control #(
     .rstn     (rstn   )
   );
 endmodule
-`default_nettype wire

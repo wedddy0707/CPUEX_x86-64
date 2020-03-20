@@ -18,8 +18,8 @@ module decode_queue (
   wire [`MQ_N_W-1:0] fet_head;
   wire [`MQ_N_W-1:0] fet_tail_pre [`MQ_N-1:0];
   wire [`MQ_N_W-1:0] fet_tail;
-  wire [`MQ_N_W-1:0] deq_tail_pre [`MQ_N-1:0];
-  wire [`MQ_N_W-1:0] deq_tail;
+  wire [`DQ_N_W-1:0] deq_tail_pre [`DQ_N-1:0];
+  wire [`DQ_N_W-1:0] deq_tail;
   
   assign fet_head_pre[`MQ_N-1] =`MQ_N-1;
   assign fet_tail_pre[      0] =      0;

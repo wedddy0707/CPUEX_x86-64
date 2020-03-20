@@ -3,7 +3,7 @@
 
 module execute_phase #(
   parameter LOAD_LATENCY = 1,
-  parameter POST_DEC_LD  = 3
+  parameter POST_DEC_LD  = 4
 ) (
   input  de_reg_t de_reg                     ,
   input     reg_t gpr[`REG_N-1:0]            ,
@@ -13,7 +13,7 @@ module execute_phase #(
   output    reg_t pos_d     [POST_DEC_LD-1:0],
   output   addr_t mem_addr                   ,
   output    reg_t st_data                    ,
-  output    logic we                         ,
+  output logic[7:0] we                       ,
   input     reg_t ld_data                    ,
   input     logic clk                        ,
   input     logic rstn                       //
@@ -22,36 +22,42 @@ module execute_phase #(
   localparam LD   = POST_DEC_LD  ;
   localparam EQ_N = POST_DEC_LD-1;
 
-  miinst_t    exq_miinst[EQ_N-1:0];
-  reg_t       exq_d     [EQ_N-1:0];
-  logic [2:0] exq_ld_offset;
+  miinst_t    exq_miinst   [EQ_N-1:0];
+  reg_t       exq_d        [EQ_N-1:0];
+  logic [2:0] exq_ld_offset[EQ_N-1:0];
 
+  logic [2:0] ld_offset;
+
+  assign ew_reg.miinst      = exq_miinst[EQ_N-1];
+  assign ew_reg.d           = exq_d     [EQ_N-1];
   assign pos_miinst[0]      = de_reg.miinst;
   assign pos_d     [0]      = ew_sig.d     ;
   assign pos_miinst[LD-1:1] = exq_miinst   ;
-  assign pos_miinst[LD-1:1] = exq_d        ;
+  assign pos_d     [LD-1:1] = exq_d        ;
   
-  reg_t ld_data_to_write =
-    (exq_ld_offset[LL-1]==3'd0) ? reg_t'(ld_data[`REG_W-1: 0]):
-    (exq_ld_offset[LL-1]==3'd1) ? reg_t'(ld_data[`REG_W-1: 8]):
-    (exq_ld_offset[LL-1]==3'd2) ? reg_t'(ld_data[`REG_W-1:16]):
-    (exq_ld_offset[LL-1]==3'd3) ? reg_t'(ld_data[`REG_W-1:24]):
-    (exq_ld_offset[LL-1]==3'd4) ? reg_t'(ld_data[`REG_W-1:32]):
-    (exq_ld_offset[LL-1]==3'd5) ? reg_t'(ld_data[`REG_W-1:40]):
-    (exq_ld_offset[LL-1]==3'd6) ? reg_t'(ld_data[`REG_W-1:48]):
-                                  reg_t'(ld_data[`REG_W-1:56]);
+  reg_t  ld_data_to_write;
+  assign ld_data_to_write =
+    (exq_ld_offset[LL]==3'd0) ? reg_t'(ld_data[`REG_W-1: 0]):
+    (exq_ld_offset[LL]==3'd1) ? reg_t'(ld_data[`REG_W-1: 8]):
+    (exq_ld_offset[LL]==3'd2) ? reg_t'(ld_data[`REG_W-1:16]):
+    (exq_ld_offset[LL]==3'd3) ? reg_t'(ld_data[`REG_W-1:24]):
+    (exq_ld_offset[LL]==3'd4) ? reg_t'(ld_data[`REG_W-1:32]):
+    (exq_ld_offset[LL]==3'd5) ? reg_t'(ld_data[`REG_W-1:40]):
+    (exq_ld_offset[LL]==3'd6) ? reg_t'(ld_data[`REG_W-1:48]):
+                                reg_t'(ld_data[`REG_W-1:56]);
 
   integer i;
   always @(posedge clk) begin
-    exq_d     [0] <= ~rstn ? 0 : ew_sig.d     ;
-    exq_miinst[0] <= ~rstn ? 0 : de_reg.miinst;
+    exq_d        [0] <= ~rstn ? 0      : ew_sig.d     ;
+    exq_miinst   [0] <= ~rstn ? nop(0) : de_reg.miinst;
+    exq_ld_offset[0] <= ~rstn ? 0      : ld_offset    ;
     
     for(i=1;i<EQ_N;i=i+1) begin
-      exq_miinst   [i] <= exq_miinst   [i-1];
-      exq_ld_offset[i] <= exq_ld_offset[i-1];
+      exq_miinst   [i] <= ~rstn ? nop(0):exq_miinst   [i-1];
+      exq_ld_offset[i] <= ~rstn ?     0 :exq_ld_offset[i-1];
 
       if (i==LOAD_LATENCY+1 && exq_miinst[i-1].op==MIOP_L) begin
-        case (miinst[i-1].bmd)
+        case (exq_miinst[i-1].bmd)
           BMD_08 : exq_d[i] <= reg_t'(ld_data_to_write[ 7:0]);
           BMD_32 : exq_d[i] <= reg_t'(ld_data_to_write[31:0]);
           default: exq_d[i] <= reg_t'(ld_data_to_write[63:0]);
@@ -101,21 +107,21 @@ module execute_memory_access (
   input    reg_t       t        ,
   output  addr_t       mem_addr ,
   output   reg_t       st_data  ,
-  output   logic       we       ,
+  output   logic [7:0] we       ,
   output   logic [2:0] ld_offset,
   input    logic       clk      ,
   input    logic       rstn
 );
   addr_t a;
   
-  assign a = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'(signed'(miinst.imm)));
+  assign a         = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'(signed'(miinst.imm)));
+  assign ld_offset = a[2:0];
   always @(posedge clk) begin
     if (~rstn) begin
       we <= 0;
     end else begin
       mem_addr  <= addr_t'(a[`ADDR_W-1:3]);
       st_data   <=  reg_t'(d << {a[2:0],3'b000});
-      ld_offset <= a[2:0];
       we        <=
         (miinst.op  !=MIOP_S) ? 8'h00           :
         (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0] :
@@ -133,6 +139,16 @@ module execute_branch (
   output    addr_t branch_direction,
   output     logic branch_enable   //
 );
+  wire above   ,
+       below   ,
+       carry   ,
+       equal   ,
+       greater ,
+       less    ,
+       overflow,
+       parity  ,
+       sign    ;
+  
   assign branch_enable =
     // 無条件分岐
     (miinst.op==MIOP_J  ) ?  1              :
@@ -161,6 +177,11 @@ module execute_branch (
     /*         ==BMD_64 */ ~|rcx[63:0]
     )                                           : 0;
 
+  addr_t type_reg;
+  assign type_reg = addr_t'(d);
+  addr_t type_rel;
+  assign type_rel = miinst.pc + addr_t'(signed'(miinst.imm))+addr_t'(1);
+  
   assign branch_direction =
     // 無条件分岐
     (miinst.op==MIOP_J  ) ? type_rel :
@@ -185,19 +206,6 @@ module execute_branch (
     (miinst.op==MIOP_JNO) ? type_rel :
     // 条件分岐 JCX
     (miinst.op==MIOP_JCX) ? type_rel : 0;
-
-  wire above   ,
-       below   ,
-       carry   ,
-       equal   ,
-       greater ,
-       less    ,
-       overflow,
-       parity  ,
-       sign    ;
-  
-  addr_t type_reg = addr_t'(d)                         ;
-  addr_t type_rel = pc+addr_t'(signed'(imm))+addr_t'(1);
 
   condition_clarifier condition_clarifier_1 (
     .eflags  (eflags  ),

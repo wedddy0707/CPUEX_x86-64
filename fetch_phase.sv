@@ -1,7 +1,5 @@
-`default_nettype none
 `include "common_params.h"
-`include "common_params_svfiles.sv"
-
+`include "common_params_svfiles.h"
 
 module fetch_phase #(
   parameter LOAD_LATENCY = 1
@@ -17,17 +15,64 @@ module fetch_phase #(
 );
   // ステートとそのサポート役のレジスタたち
   // (これらの直積をステートと言った方が正確かもしれない)
-  fstate        state          ;
-  reg   [ 3:0]  rex            ;
-  const_info_t  imm            ;
-  const_info_t  disp           ;
+  fstate        state;
+  reg   [ 3:0]  rex  ;
+  const_info_t  imm  ;
+  const_info_t  disp ;
   
   // 些末な問題を解決するためのレジスタやワイヤ線
-  reg ignore_meaningless_add;
+  reg  ignore_meaningless_add;
   wire head_inst = valid|(ignore_meaningless_add&inst!=8'b0);
   
   integer i;
 
+  // デバッグ用
+  name_t name;
+
+  // モジュールと繋ぐワイヤ線
+  fstate        state_opcode_1               ;
+  miinst_t     miinst_opcode_1    [`MQ_N-1:0];
+  name_t         name_opcode_1               ;
+  const_info_t    imm_opcode_1               ;
+  const_info_t   disp_opcode_1               ;
+  logic [ 3:0]    rex_opcode_1               ;
+  logic         valid_opcode_1               ;
+  fstate        state_opcode_2               ;
+  miinst_t     miinst_opcode_2    [`MQ_N-1:0];
+  name_t         name_opcode_2               ;
+  const_info_t    imm_opcode_2               ;
+  const_info_t   disp_opcode_2               ;
+  logic [ 3:0]    rex_opcode_2               ;
+  logic         valid_opcode_2               ;
+  fstate        state_modrm                  ;
+  miinst_t     miinst_modrm       [`MQ_N-1:0];
+  name_t         name_modrm                  ;
+  const_info_t    imm_modrm                  ;
+  const_info_t   disp_modrm                  ;
+  logic [ 3:0]    rex_modrm                  ;
+  logic         valid_modrm                  ;
+  fstate        state_sib                    ;
+  miinst_t     miinst_sib         [`MQ_N-1:0];
+  name_t         name_sib                    ;
+  const_info_t    imm_sib                    ;
+  const_info_t   disp_sib                    ;
+  logic [ 3:0]    rex_sib                    ;
+  logic         valid_sib                    ;
+  fstate        state_displacement           ;
+  miinst_t     miinst_displacement[`MQ_N-1:0];
+  name_t         name_displacement           ;
+  const_info_t    imm_displacement           ;
+  const_info_t   disp_displacement           ;
+  logic [ 3:0]    rex_displacement           ;
+  logic         valid_displacement           ;
+  fstate        state_immediate              ;
+  miinst_t     miinst_immediate   [`MQ_N-1:0];
+  name_t         name_immediate              ;
+  const_info_t    imm_immediate              ;
+  const_info_t   disp_immediate              ;
+  logic [ 3:0]    rex_immediate              ;
+  logic         valid_immediate              ;
+  
   always @(posedge clk) begin
     if (~rstn) begin
       ignore_meaningless_add  <=        1;
@@ -112,7 +157,7 @@ module fetch_phase #(
         end
         default:
         begin
-          state <= S_OPCODE_1;
+          state <= OPCODE_1;
         end
       endcase
       
@@ -121,49 +166,6 @@ module fetch_phase #(
       end
     end
   end
-
-  fstate        state_opcode_1               ;
-  miinst_t     miinst_opcode_1    [`MQ_N-1:0];
-  name_t         name_opcode_1               ;
-  const_info_t    imm_opcode_1               ;
-  const_info_t   disp_opcode_1               ;
-  logic [ 3:0]    rex_opcode_1               ;
-  logic         valid_opcode_1               ;
-  fstate        state_opcode_2               ;
-  miinst_t     miinst_opcode_2    [`MQ_N-1:0];
-  name_t         name_opcode_2               ;
-  const_info_t    imm_opcode_2               ;
-  const_info_t   disp_opcode_2               ;
-  logic [ 3:0]    rex_opcode_2               ;
-  logic         valid_opcode_2               ;
-  fstate        state_modrm                  ;
-  miinst_t     miinst_modrm       [`MQ_N-1:0];
-  name_t         name_modrm                  ;
-  const_info_t    imm_modrm                  ;
-  const_info_t   disp_modrm                  ;
-  logic [ 3:0]    rex_modrm                  ;
-  logic         valid_modrm                  ;
-  fstate        state_sib                    ;
-  miinst_t     miinst_sib         [`MQ_N-1:0];
-  name_t         name_sib                    ;
-  const_info_t    imm_sib                    ;
-  const_info_t   disp_sib                    ;
-  logic [ 3:0]    rex_sib                    ;
-  logic         valid_sib                    ;
-  fstate        state_displacement           ;
-  miinst_t     miinst_displacement[`MQ_N-1:0];
-  name_t         name_displacement           ;
-  const_info_t    imm_displacement           ;
-  const_info_t   disp_displacement           ;
-  logic [ 3:0]    rex_displacement           ;
-  logic         valid_displacement           ;
-  fstate        state_immediate              ;
-  miinst_t     miinst_immediate   [`MQ_N-1:0];
-  name_t         name_immediate              ;
-  const_info_t    imm_immediate              ;
-  const_info_t   disp_immediate              ;
-  logic [ 3:0]    rex_immediate              ;
-  logic         valid_immediate              ;
 
   fetch_phase_opcode_1 fetch_phase_opcode_1_inst (
     .inst         (inst           ),
@@ -268,4 +270,3 @@ module fetch_phase #(
     .valid        (valid_immediate  )
   );
 endmodule
-`default_nettype wire

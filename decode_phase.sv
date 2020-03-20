@@ -19,10 +19,10 @@ module decode_phase #(
   reg_t dec_t;
 
   always @(posedge clk) begin
-    de_reg.miinst <= (~rstn|flush|stall) ? nop(deq_miinst_head.pc):deq_miinst_head;
-    de_reg.d      <= (~rstn|flush|stall) ?                       0:dec_d;
-    de_reg.s      <= (~rstn|flush|stall) ?                       0:dec_s;
-    de_reg.t      <= (~rstn|flush|stall) ?                       0:dec_t;
+    de_reg.miinst <= (~rstn|flush|stall) ? nop(0):deq_miinst_head;
+    de_reg.d      <= (~rstn|flush|stall) ?     0 :dec_d;
+    de_reg.s      <= (~rstn|flush|stall) ?     0 :dec_s;
+    de_reg.t      <= (~rstn|flush|stall) ?     0 :dec_t;
   end
   
   decode_phase_value_decision #(

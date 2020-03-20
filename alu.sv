@@ -15,7 +15,7 @@ module alu (
   input     reg_t t            ,
   output    reg_t eflags       ,
   output    logic eflags_update,
-  output    reg_t eflags_as_src
+  input     reg_t eflags_as_src
 );
   genvar i;
 
@@ -59,8 +59,8 @@ module alu (
         .d            (pre_d[i]     ),
         .eflags       (pre_e[i]     ),
         .eflags_as_src(eflags_as_src),
-        .s            (s            ),
-        .t            (t            ),
+        .s            (s_alu        ),
+        .t            (t_alu        ),
         .bmd          (bmd_alu      )
       );
     end
@@ -91,21 +91,25 @@ module reform_src_in_alu (
 );
   function reg_t neg (input reg_t x);
   begin
-    neg = (~x)+reg_t'(1);
+    neg = reg_t'((~x)+reg_t'(1));
   end
   endfunction
 
-  reg_t imm_sx = reg_t'(  signed'(miinst.imm));
-  reg_t imm_zx = reg_t'(unsigned'(miinst.imm));
+  reg_t  imm_sx;
+  assign imm_sx = reg_t'(  signed'(miinst.imm));
+  reg_t  imm_zx;
+  assign imm_zx = reg_t'(unsigned'(miinst.imm));
+  reg_t      z;
+  assign     z  = reg_t'(0);
 
   always_comb begin
     bmd_alu <= miinst.bmd;
 
     case (miinst.op)
       MIOP_ADDI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx                 };
-      MIOP_ADCI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx    +`REG_W'(cf) };
+      MIOP_ADCI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,imm_sx    + reg_t'(cf) };
       MIOP_SUBI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
-      MIOP_SBBI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx+`REG_W'(cf))};
+      MIOP_SBBI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx+ reg_t'(cf))};
       MIOP_MULI :{op_alu,s_alu,t_alu}<={MIOP_MUL,s,    imm_sx             };
       MIOP_DIVI :{op_alu,s_alu,t_alu}<={MIOP_DIV,s,    imm_sx             };
       MIOP_ANDI :{op_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
@@ -114,7 +118,7 @@ module reform_src_in_alu (
       MIOP_SLLI :{op_alu,s_alu,t_alu}<={MIOP_SLL,s,    imm_zx             };
       MIOP_SRLI :{op_alu,s_alu,t_alu}<={MIOP_SRL,s,    imm_zx             };
       MIOP_SRAI :{op_alu,s_alu,t_alu}<={MIOP_SRA,s,    imm_zx             };
-      MIOP_MOVI :{op_alu,s_alu,t_alu}<={MIOP_OR ,0,    imm_zx             };
+      MIOP_MOVI :{op_alu,s_alu,t_alu}<={MIOP_OR ,z,    imm_zx             };
       MIOP_CMPI :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(imm_sx)            };
       MIOP_TESTI:{op_alu,s_alu,t_alu}<={MIOP_AND,s,    imm_zx             };
       MIOP_ADD  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,    t                  };
@@ -127,11 +131,11 @@ module reform_src_in_alu (
       MIOP_SLL  :{op_alu,s_alu,t_alu}<={MIOP_SLL,s,    t                  };
       MIOP_SRL  :{op_alu,s_alu,t_alu}<={MIOP_SRL,s,    t                  };
       MIOP_SRA  :{op_alu,s_alu,t_alu}<={MIOP_SRA,s,    t                  };
-      MIOP_MOV  :{op_alu,s_alu,t_alu}<={MIOP_OR ,0,    t                  };
+      MIOP_MOV  :{op_alu,s_alu,t_alu}<={MIOP_OR ,z,    t                  };
       MIOP_CMP  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t)                 };
       MIOP_TEST :{op_alu,s_alu,t_alu}<={MIOP_AND,s,    t                  };
-      MIOP_ADC  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,    t+`REG_W'(cf)      };
-      MIOP_SBB  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t+`REG_W'(cf))     };
+      MIOP_ADC  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,    t+ reg_t'(cf)      };
+      MIOP_SBB  :{op_alu,s_alu,t_alu}<={MIOP_ADD,s,neg(t+ reg_t'(cf))     };
       default   :{op_alu,s_alu,t_alu}<={miinst.op,s,t                     };
     endcase
   end
@@ -144,7 +148,7 @@ module very_primitive_calc #(
   input  [`REG_W-1:0] s,
   input  [`REG_W-1:0] t
 );
-  function logic msb (input reg_t x);
+  function msb (input reg_t x);
   begin
     msb = x[`REG_W-1];
   end
@@ -166,6 +170,8 @@ module very_primitive_calc #(
     end
     else if (CALC==`PRIMITIVE_CALC_SLL) begin: calc_sll
       assign d = {1'b0,s} << t[5:0];
+    end else begin : calc_nop
+      assign d = 0;
     end
   end
   endgenerate
@@ -204,11 +210,23 @@ module primitive_calc #(
   end
   endfunction
 
-  assign d =
-    (bmd==BMD_08) ? reg_t'(d_with_bits_extended[ 7:0]):
-    (bmd==BMD_16) ? reg_t'(d_with_bits_extended[15:0]):
-    (bmd==BMD_32) ? reg_t'(d_with_bits_extended[31:0]):
-                    reg_t'(d_with_bits_extended[63:0]);
+  generate
+  begin
+    if (ARITHMETIC) begin : sign_extend
+      assign d =
+        (bmd==BMD_08) ? reg_t'(signed'(d_with_bits_extended[ 7:0])):
+        (bmd==BMD_16) ? reg_t'(signed'(d_with_bits_extended[15:0])):
+        (bmd==BMD_32) ? reg_t'(signed'(d_with_bits_extended[31:0])):
+                        reg_t'(signed'(d_with_bits_extended[63:0]));
+    end else begin : zero_extend
+      assign d =
+        (bmd==BMD_08) ? reg_t'(d_with_bits_extended[ 7:0]):
+        (bmd==BMD_16) ? reg_t'(d_with_bits_extended[15:0]):
+        (bmd==BMD_32) ? reg_t'(d_with_bits_extended[31:0]):
+                        reg_t'(d_with_bits_extended[63:0]);
+    end
+  end
+  endgenerate
 
   wire cf =
     (bmd==BMD_08) ? reg_t'(d_with_bits_extended[ 8]):

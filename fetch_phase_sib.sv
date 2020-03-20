@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -19,6 +18,9 @@ module fetch_phase_sib (
   output logic [ 3:0] rex                     ,
   output logic        valid                   //
 );
+  imm_t  shift           = imm_t'(inst[7:6]);
+  rega_t target_to_scale = miinst_as_src[`MQ_LOAD].s;
+
   always_comb begin
     // ELSEやDEFAULTを漏れなく書くのは怠すぎるので
     // 先頭にこれを書くことで妥協する
@@ -31,7 +33,7 @@ module fetch_phase_sib (
     valid  <=             0;
     
     // 本質はここから
-    miinst[`MQ_SCALE]   <= make_miinst(MIOP_SLLI,SCL,miinst_as_src[`MQ_LOAD].s,0,imm_t'(inst[7:6]),BMD_64,pc);
+    miinst[`MQ_SCALE]   <= make_miinst(MIOP_SLLI,SCL,target_to_scale,,shift,BMD_64,pc);
     miinst[`MQ_LOAD ].s <= SCL;
     miinst[`MQ_LOAD ].t <= SCL;
     state.obj <= (disp_as_src.size!=0)? DISPLACEMENT:
@@ -42,5 +44,3 @@ module fetch_phase_sib (
                                         1;
   end
 endmodule
-
-`default_nettype wire

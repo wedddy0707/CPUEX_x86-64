@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -19,26 +18,26 @@ module fetch_phase_immediate (
   output logic [ 3:0] rex                     ,
   output logic        valid                   //
 );
-  // 必ず組み合わせ回路として解釈されるようalways_comb
-  always_comb begin
-    // ELSEやDEFAULTを漏れなく書くのは怠すぎるので
-    // 先頭にこれを書くことで妥協する
-    state  <= state_as_src ;
-    miinst <= miinst_as_src;
-    name   <= name_as_src  ;
-    imm    <= imm_as_src   ;
-    disp   <= disp_as_src  ;
-    rex    <= rex_as_src   ;
-    valid  <=             0;
-    
-    // 本質はここから
-    imm.cnt <= imm_as_src.cnt+1;
+  integer i;
 
-    if (imm_as_src.size==imm_as_src.cnt+1) begin
-      state.obj <= OPCODE_1;
-      valid     <= 1;
-    end
-    
+  // このステートでは変更しないパラメータ
+  assign state.dst  =  state_as_src.dst ;
+  assign state.grp  =  state_as_src.grp ;
+  assign name       =   name_as_src     ;
+  assign imm.size   =    imm_as_src.size;
+  assign imm.to     =    imm_as_src.to  ;
+  assign disp       =   disp_as_src     ;
+  assign rex        =    rex_as_src     ;
+  
+  // validityの判断はこれで十分
+  assign valid      =(state.obj==OPCODE_1);
+  
+  always_comb begin
+    imm.cnt   <= imm_as_src.cnt+1;
+    state.obj <=(imm_as_src.size > imm_as_src.cnt + 1) ? IMMEDIATE:
+                                                         OPCODE_1 ;
+
+    miinst    <= miinst_as_src;
     for (i=0;i<`MQ_N;i=i+1)
     begin
       if (imm_as_src.to[i])
@@ -53,4 +52,3 @@ module fetch_phase_immediate (
     end
   end
 endmodule
-`default_nettype wire

@@ -1,4 +1,3 @@
-`default_nettype none
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
@@ -19,34 +18,31 @@ module fetch_phase_displacement (
   output logic [ 3:0] rex                     ,
   output logic        valid                   //
 );
-  always_comb begin
-    // ELSEやDEFAULTを漏れなく書くのは怠すぎるので
-    // 先頭にこれを書くことで妥協する
-    state  <= state_as_src ;
-    miinst <= miinst_as_src;
-    name   <= name_as_src  ;
-    imm    <= imm_as_src   ;
-    disp   <= disp_as_src  ;
-    rex    <= rex_as_src   ;
-    valid  <=             0;
-    
-    // 本質はここから
-    disp.cnt <= disp_as_src.cnt+1;
+  integer i;
+  
+  // このステートでは変更しないパラメータ
+  assign state.dst  =  state_as_src.dst ;
+  assign state.grp  =  state_as_src.grp ;
+  assign name       =   name_as_src     ;
+  assign disp.size  =   disp_as_src.size;
+  assign disp.to    =   disp_as_src.to  ;
+  assign imm        =    imm_as_src     ;
+  assign rex        =    rex_as_src     ;
 
-    if (disp_as_src.size==disp_as_src.cnt+1) begin
-      if (imm_as_src.size==0) begin
-        state.obj <= OPCODE_1;
-        valid     <= 1;
-      end else begin
-        state.obj <= IMMEDIATE;
-      end         
-    end
-    
+  // validityの判断はこれで十分
+  assign valid      =(state.obj==OPCODE_1);
+
+  always_comb begin
+    disp.cnt  <= disp_as_src.cnt+1;
+    state.obj <=(disp_as_src.size > disp_as_src.cnt + 1) ? DISPLACEMENT:
+                (imm_as_src.size  > 0                  ) ? IMMEDIATE   :
+                                                           OPCODE_1    ;
+    miinst <= miinst_as_src;
     for (i=0;i<`MQ_N;i=i+1)
     begin
       if (disp_as_src.to[i])
       begin
-        case (disp.cnt)
+        case (disp_as_src.cnt)
           2'd0   :miinst[i].imm[`IMM_W-1: 0] <= imm_t'(signed'(inst));
           2'd1   :miinst[i].imm[`IMM_W-1: 8] <= imm_t'(signed'(inst));
           2'd2   :miinst[i].imm[`IMM_W-1:16] <= imm_t'(signed'(inst));
@@ -56,5 +52,3 @@ module fetch_phase_displacement (
     end
   end
 endmodule
-
-`default_nettype wire
