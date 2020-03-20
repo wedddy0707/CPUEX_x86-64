@@ -100,7 +100,9 @@ module execute_phase #(
   );
 endmodule
 
-module execute_memory_access (
+module execute_memory_access #(
+  parameter IO_FILE_POINTER = 32'hfffff000
+) (
   input miinst_t       miinst   ,
   input    reg_t       d        ,
   input    reg_t       s        ,
@@ -112,10 +114,10 @@ module execute_memory_access (
   input    logic       clk      ,
   input    logic       rstn
 );
+
   addr_t a;
-  
-  assign a         = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'(signed'(miinst.imm)));
-  assign ld_offset = a[2:0];
+  assign a = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'signed'(miinst.imm));
+
   always @(posedge clk) begin
     if (~rstn) begin
       we <= 0;
@@ -123,10 +125,10 @@ module execute_memory_access (
       mem_addr  <= addr_t'(a[`ADDR_W-1:3]);
       st_data   <=  reg_t'(d << {a[2:0],3'b000});
       we        <=
-        (miinst.op  !=MIOP_S) ? 8'h00           :
-        (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0] :
-        (miinst.bmd ==BMD_32) ? 8'h0f << a[2:0] :
-        (miinst.bmd ==BMD_64) ? 8'hff           : 8'h00;
+        (miinst.op  !=MIOP_S) ? 8'h00          :
+        (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0]:
+        (miinst.bmd ==BMD_32) ? 8'h0f << a[2:0]:
+        (miinst.bmd ==BMD_64) ? 8'hff          : 8'h00;
     end
   end
 endmodule
