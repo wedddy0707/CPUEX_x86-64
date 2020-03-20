@@ -244,6 +244,18 @@ module fetch_phase_opcode_1 (
       end
       8'hca:begin end // Ret imm16 (Far  return) 無視
       8'hcb:begin end // Ret       (Far  return) 無視
+      /*********************
+      *     - Leave: High Level Procedure Exit
+      */
+      8'hc9:// Set SP/ESP/RSP to BP/EBP/RBP, then pop BP/EBP/RBP.
+      begin
+        name      <= "LEAVE";
+        miinst[0] <= make_miinst(MIOP_MOV,RSP,,RBP,,bmd_det(0,rex_w),pc);
+        miinst[1] <= load_on_pop(RBP,pc);
+        miinst[2] <= addi_on_pop(pc);
+        valid     <= 1;
+        state.obj <= OPCODE_1;
+      end
       /********************************
       *     - In - Input from port
       */
@@ -254,6 +266,20 @@ module fetch_phase_opcode_1 (
       8'b1110110?: // In AL/AX/EAX,DX
       begin
         name      <="IN";
+      end
+      /********************************
+      *     - Out - Output to port
+      */
+      8'b1110011?: // Out imm8, AL/AX/EAX
+      begin
+        /**************************************
+        * if (inst[0]==0) then AL else AX/EAX.
+        */
+        name      <= "OUT";
+        imm.size  <=     1;
+        imm.to[0] <=     1;
+        miinst[0] <= make_miinst(MIOP_OUT,,,,,bmd_det(~inst[0],0),pc);
+        state     <= make_state (IMMEDIATE,,);
       end
       /*********************
       *     - Call

@@ -125,7 +125,9 @@ typedef enum {
   MIOP_CMP ,
   MIOP_CMPI,
   MIOP_TEST,
-  MIOP_TESTI
+  MIOP_TESTI,
+  MIOP_IN,
+  MIOP_OUT
 } miop_t;
 
 typedef enum logic[1:0] {
