@@ -16,7 +16,7 @@ module execute_phase #(
   input     reg_t ld_data                    ,
   output   addr_t mem_addr                   ,
   output    bmd_t mem_bmd                    ,
-  input     logic we                         ,
+  output    logic we                         ,
   input     logic clk                        ,
   input     logic rstn                       //
 );

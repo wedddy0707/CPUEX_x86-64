@@ -41,6 +41,8 @@ module core_periphs #(
   wire [32    -1:0]  out_data;
   wire               out_req ;
   wire               out_busy;
+  wire                in_busy;
+  wire [ADDR_W-1:0] consumer_pointer = 0;
   wire [ADDR_W-1:0]  mem_addr_with_ideal_width;
   wire [ADDR_W-1:0] pc_to_mem_with_ideal_width;
 

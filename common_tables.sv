@@ -81,7 +81,9 @@ module register_usage_table (
     (miinst.op==MIOP_CMP  ) ?           gs | gt | from_ef | to_ef :
     (miinst.op==MIOP_CMPI ) ?                gt | from_ef | to_ef :
     (miinst.op==MIOP_TEST ) ?           gs | gt | from_ef | to_ef :
-    (miinst.op==MIOP_TESTI) ?                gt | from_ef | to_ef : nothing;
+    (miinst.op==MIOP_TESTI) ?                gt | from_ef | to_ef :
+    (miinst.op==MIOP_OUT  ) ? from_gd                             :
+    (miinst.op==MIOP_IN   ) ?   to_gd                             : nothing;
 
 endmodule
 

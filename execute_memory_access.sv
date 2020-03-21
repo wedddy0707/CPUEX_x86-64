@@ -15,14 +15,22 @@ module transform_virt_phys #(
   output logic [ 7:0] phys_we      ,
   output  reg_t       phys_st_data ,
   output  reg_t       virt_ld_data ,
+  input  logic [31:0] in_data      ,
+  output logic        in_req       ,
   output logic [31:0] out_data     ,
   output logic        out_req      ,
   input  logic        clk          ,
   input  logic        rstn         //
 );
   
-  wire [2:0] position = virt_mem_addr[2:0];
+  wire [2:0] position     = virt_mem_addr[2:0];
   reg  [2:0] position_queue [POST_DEC_LD-1:0];
+  reg        io_req_queue   [POST_DEC_LD-1:0];
+  wire [7:0] pre_phys_we  =
+    (~virt_we             ) ? 8'h00:
+    ( virt_mem_bmd==BMD_08) ? 8'h01:
+    ( virt_mem_bmd==BMD_32) ? 8'h0f:
+   /* virt_mem_bmd==BMD_64 */ 8'hff;
 
   /****************************
   * Mainly About Store & Out.
@@ -35,21 +43,19 @@ module transform_virt_phys #(
     end else begin
       phys_we <= 0;
       out_req <= 0;
-      if (virt_mem_addr==IO_FILE_POINTER) begin // I/O
-        if (virt_we) begin // OUT
+      case (virt_mem_addr)
+        IO_FILE_POINTER:
+        begin
           out_data <= virt_st_data[31:0];
-          out_req  <= 1;
-        end else begin     // IN
+          out_req  <= virt_we;
         end
-      end else begin // Memory Access
-        phys_mem_addr <= addr_t'({3'b000,virt_mem_addr[`ADDR_W-1:3]});
-        phys_st_data  <=  reg_t'(virt_st_data << {position,3'b000});
-        phys_we       <=
-          (~virt_we             ) ? 8'h00            :
-          ( virt_mem_bmd==BMD_08) ? 8'h01 << position:
-          ( virt_mem_bmd==BMD_32) ? 8'h0f << position:
-          ( virt_mem_bmd==BMD_64) ? 8'hff <<         : 8'h00;
-      end
+        default:
+        begin
+          phys_mem_addr <= addr_t'({3'b000,virt_mem_addr[`ADDR_W-1:3]});
+          phys_st_data  <=  reg_t'(virt_st_data << {position,3'b000});
+          phys_we       <= pre_phys_we << position;
+        end
+      endcase
     end
   end
 
@@ -61,6 +67,7 @@ module transform_virt_phys #(
   localparam LL = LOAD_LATENCY;
   
   assign virt_ld_data =
+    (io_req_queue  [LL]      ) ? reg_t'(in_data                  ):
     (position_queue[LL]==3'd0) ? reg_t'(phys_ld_data[`REG_W-1: 0]):
     (position_queue[LL]==3'd1) ? reg_t'(phys_ld_data[`REG_W-1: 8]):
     (position_queue[LL]==3'd2) ? reg_t'(phys_ld_data[`REG_W-1:16]):
@@ -74,12 +81,15 @@ module transform_virt_phys #(
     if (~rstn) begin
       for(i=0;i<POST_DEC_LD;i=i+1) begin
         position_queue[i] <= 0;
+        io_req_queue  [i] <= 0;
       end
     end else begin
       position_queue[0] <= position;
+      io_req_queue  [0] <=(virt_mem_addr==IO_FILE_POINTER);
 
       for(i=1;i<POST_DEC_LD;i=i+1) begin
         position_queue[i] <= position_queue[i-1];
+        io_req_queue  [i] <= io_req_queue  [i-1];
       end
     end
   end
@@ -98,7 +108,7 @@ module execute_memory_access #(
   output   logic we       
 );
   assign st_data = d;
-  assign we      =(miinst.op==MIOP_L)|(miinst.op==MIOP_OUT);
+  assign we      =(miinst.op==MIOP_S)|(miinst.op==MIOP_OUT);
   assign mem_bmd = miinst.bmd;
 
   always_comb begin
