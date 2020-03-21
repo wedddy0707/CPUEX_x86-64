@@ -2,8 +2,9 @@
 `include "common_params_svfiles.h"
 
 module execute_phase #(
-  parameter LOAD_LATENCY = 1,
-  parameter POST_DEC_LD  = 4
+  parameter LOAD_LATENCY    = 1,
+  parameter POST_DEC_LD     = 4,
+  parameter IO_FILE_POINTER = 32'hfffff000
 ) (
   input  de_reg_t de_reg                     ,
   input     reg_t gpr[`REG_N-1:0]            ,
@@ -11,10 +12,11 @@ module execute_phase #(
   output ew_sig_t ew_sig                     ,
   output miinst_t pos_miinst[POST_DEC_LD-1:0],
   output    reg_t pos_d     [POST_DEC_LD-1:0],
-  output   addr_t mem_addr                   ,
   output    reg_t st_data                    ,
-  output logic[7:0] we                       ,
   input     reg_t ld_data                    ,
+  output   addr_t mem_addr                   ,
+  output    bmd_t mem_bmd                    ,
+  input     logic we                         ,
   input     logic clk                        ,
   input     logic rstn                       //
 );
@@ -24,9 +26,6 @@ module execute_phase #(
 
   miinst_t    exq_miinst   [EQ_N-1:0];
   reg_t       exq_d        [EQ_N-1:0];
-  logic [2:0] exq_ld_offset[EQ_N-1:0];
-
-  logic [2:0] ld_offset;
 
   assign ew_reg.miinst      = exq_miinst[EQ_N-1];
   assign ew_reg.d           = exq_d     [EQ_N-1];
@@ -34,33 +33,20 @@ module execute_phase #(
   assign pos_d     [0]      = ew_sig.d     ;
   assign pos_miinst[LD-1:1] = exq_miinst   ;
   assign pos_d     [LD-1:1] = exq_d        ;
-  
-  reg_t  ld_data_to_write;
-  assign ld_data_to_write =
-    (exq_ld_offset[LL]==3'd0) ? reg_t'(ld_data[`REG_W-1: 0]):
-    (exq_ld_offset[LL]==3'd1) ? reg_t'(ld_data[`REG_W-1: 8]):
-    (exq_ld_offset[LL]==3'd2) ? reg_t'(ld_data[`REG_W-1:16]):
-    (exq_ld_offset[LL]==3'd3) ? reg_t'(ld_data[`REG_W-1:24]):
-    (exq_ld_offset[LL]==3'd4) ? reg_t'(ld_data[`REG_W-1:32]):
-    (exq_ld_offset[LL]==3'd5) ? reg_t'(ld_data[`REG_W-1:40]):
-    (exq_ld_offset[LL]==3'd6) ? reg_t'(ld_data[`REG_W-1:48]):
-                                reg_t'(ld_data[`REG_W-1:56]);
 
   integer i;
   always @(posedge clk) begin
     exq_d        [0] <= ~rstn ? 0      : ew_sig.d     ;
     exq_miinst   [0] <= ~rstn ? nop(0) : de_reg.miinst;
-    exq_ld_offset[0] <= ~rstn ? 0      : ld_offset    ;
     
     for(i=1;i<EQ_N;i=i+1) begin
       exq_miinst   [i] <= ~rstn ? nop(0):exq_miinst   [i-1];
-      exq_ld_offset[i] <= ~rstn ?     0 :exq_ld_offset[i-1];
 
       if (i==LOAD_LATENCY+1 && exq_miinst[i-1].op==MIOP_L) begin
         case (exq_miinst[i-1].bmd)
-          BMD_08 : exq_d[i] <= reg_t'(ld_data_to_write[ 7:0]);
-          BMD_32 : exq_d[i] <= reg_t'(ld_data_to_write[31:0]);
-          default: exq_d[i] <= reg_t'(ld_data_to_write[63:0]);
+          BMD_08 : exq_d[i] <= reg_t'(ld_data[ 7:0]);
+          BMD_32 : exq_d[i] <= reg_t'(ld_data[31:0]);
+          default: exq_d[i] <= reg_t'(ld_data[63:0]);
         endcase
       end else begin
         exq_d[i] <= exq_d[i-1];
@@ -77,18 +63,17 @@ module execute_phase #(
     .eflags_update(ew_sig.eflags_update),
     .eflags_as_src(gpr[EFL]            )
   );
-
-  execute_memory_access mem_1 (
+  execute_memory_access #(
+    IO_FILE_POINTER
+  ) mem_1 (
     .miinst   (de_reg.miinst),
     .d        (de_reg.d     ),
     .s        (de_reg.s     ),
     .t        (de_reg.t     ),
     .mem_addr (mem_addr     ),
+    .mem_bmd  (mem_bmd      ),
     .st_data  (st_data      ),
-    .we       (we           ),
-    .ld_offset(ld_offset    ),
-    .clk      (clk          ),
-    .rstn     (rstn         )
+    .we       (we           )
   );
   execute_branch br_1 (
     .miinst          (de_reg.miinst ),
@@ -100,38 +85,6 @@ module execute_phase #(
   );
 endmodule
 
-module execute_memory_access #(
-  parameter IO_FILE_POINTER = 32'hfffff000
-) (
-  input miinst_t       miinst   ,
-  input    reg_t       d        ,
-  input    reg_t       s        ,
-  input    reg_t       t        ,
-  output  addr_t       mem_addr ,
-  output   reg_t       st_data  ,
-  output   logic [7:0] we       ,
-  output   logic [2:0] ld_offset,
-  input    logic       clk      ,
-  input    logic       rstn
-);
-
-  addr_t a;
-  assign a = addr_t'(signed'({1'b0,s})+(`ADDR_W+1)'signed'(miinst.imm));
-
-  always @(posedge clk) begin
-    if (~rstn) begin
-      we <= 0;
-    end else begin
-      mem_addr  <= addr_t'(a[`ADDR_W-1:3]);
-      st_data   <=  reg_t'(d << {a[2:0],3'b000});
-      we        <=
-        (miinst.op  !=MIOP_S) ? 8'h00          :
-        (miinst.bmd ==BMD_08) ? 8'h01 << a[2:0]:
-        (miinst.bmd ==BMD_32) ? 8'h0f << a[2:0]:
-        (miinst.bmd ==BMD_64) ? 8'hff          : 8'h00;
-    end
-  end
-endmodule
 
 module execute_branch (
   input   miinst_t miinst          ,

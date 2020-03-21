@@ -12,7 +12,7 @@ module stall_control #(
   output    reg_t fwd_val_from[POST_DEC_LD-1:0],
   output    logic stall_phase                  ,
   output    logic stall_pc                     ,
-  input  io_sig_t io_sig                       ,
+  input     logic out_busy                     ,
   input     logic clk                          ,
   input     logic rstn
 );
@@ -43,7 +43,7 @@ module stall_control #(
   end
   endgenerate
 
-  assign stall_due_to_out = io_sig.out_interrupt;
+  assign stall_due_to_out = out_busy;
 
   assign stall_pc = (|stall_due_to_load_in)|stall_due_to_out;
 

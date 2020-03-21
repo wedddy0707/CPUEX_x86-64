@@ -1,54 +1,68 @@
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module core #(
-  parameter LOAD_LATEMCY = 1,
-  parameter INIT_RIP     = 0,
-  parameter INIT_RSP     = 1024
+  parameter LOAD_LATEMCY    = 1,
+  parameter INIT_RIP        = 0,
+  parameter INIT_RSP        = 1024,
+  parameter IO_FILE_POINTER = 32'hfffff000
 ) (
-  input wire [`DATA_W  -1:0] ld_data_for_inst,
-  input wire [`DATA_W  -1:0] ld_data,
-  output reg [`DATA_W  -1:0] st_data,
-  output reg [`ADDR_W  -1:0] mem_addr,
-  output reg [`ADDR_W  -1:0] pc_to_mem,
-  output reg [          7:0] we,
-  input wire                 clk,
-  input wire                 rstn
+  input   reg_t        ld_data_for_inst,
+  input   reg_t        ld_data         ,
+  output  reg_t        st_data         ,
+  output addr_t        mem_addr        ,
+  output  logic [ 7:0] we              ,
+  output addr_t        pc_to_mem       ,
+  output  logic [31:0] out_data        ,
+  output  logic        out_req         ,
+  input   logic        out_busy        ,
+  input wire           clk             ,
+  input wire           rstn            //
 );
   localparam POST_DEC_LD = LOAD_LATEMCY+3;
 
-  miinst_t fet_miinst [`MQ_N-1:0];
-  logic    fet_valid             ;
-  miinst_t deq_miinst_head       ;
-  de_reg_t de_reg;
-  ew_sig_t ew_sig;
-  ew_reg_t ew_reg;
-  miinst_t pos_miinst[POST_DEC_LD-1:0];
-  reg_t    pos_d     [POST_DEC_LD-1:0];
-  reg_t    gpr       [`REG_N     -1:0];
-  addr_t   pc_to_fet;
+  miinst_t fet_miinst [`MQ_N-1:0]       ;
+  logic    fet_valid                    ;
+  miinst_t deq_miinst_head              ;
+  de_reg_t de_reg                       ;
+  ew_sig_t ew_sig                       ;
+  ew_reg_t ew_reg                       ;
+  miinst_t pos_miinst[POST_DEC_LD-1:0]  ;
+  reg_t    pos_d     [POST_DEC_LD-1:0]  ;
+  reg_t    gpr       [`REG_N     -1:0]  ;
+  addr_t   pc_to_fet                    ;
   fwd_t    fwd_sig_from[POST_DEC_LD-1:0];
   reg_t    fwd_val_from[POST_DEC_LD-1:0];
-  logic    stall_phase;
-  logic    stall_pc;
-  logic    flush;
+  logic    stall_phase                  ;
+  logic    stall_pc                     ;
+  logic    flush                        ;
+  
+  // 仮想アドレス的な
+  reg_t    virt_st_data                 ;
+  reg_t    virt_ld_data                 ;
+  addr_t   virt_mem_addr                ;
+  bmd_t    virt_mem_bmd                 ;
+  logic    virt_we                      ;
 
-  name_t name [POST_DEC_LD-1+1:0];
-
-  genvar i;
-  instruction_name_by_ascii inba_dec (
-    .miinst(deq_miinst_head),
-    .name(name[0])
+  transform_virt_phys #(
+    LOAD_LATEMCY,
+    POST_DEC_LD,
+    IO_FILE_POINTER
+  ) transform_virt_phys_inst (
+    .virt_we      (virt_we      ),
+    .virt_mem_addr(virt_mem_addr),
+    .virt_mem_bmd (virt_mem_bmd ),
+    .virt_st_data (virt_st_data ),
+    .phys_ld_data (ld_data      ),
+    .phys_mem_addr(mem_addr     ),
+    .phys_we      (we           ),
+    .phys_st_data (st_data      ),
+    .virt_ld_data (virt_ld_data ),
+    .out_data     (out_data     ),
+    .out_req      (out_req      ),
+    .clk          (clk          ),
+    .rstn         (rstn         )
   );
-  generate
-  begin
-    for(i=0;i<POST_DEC_LD;i=i+1) begin : debug_no_tameni
-      instruction_name_by_ascii inba_pos (
-        .miinst(pos_miinst[i]),
-        .name(name[i+1])
-      );
-    end
-  end
-  endgenerate
   
   assign pc_to_mem = gpr[RIP][31:3];
   inst_t inst;
@@ -100,18 +114,19 @@ module core #(
   execute_phase #(
     LOAD_LATEMCY
   ) execute_phase_1 (
-    .de_reg    (de_reg    ),
-    .gpr       (gpr       ),
-    .ew_sig    (ew_sig    ),
-    .ew_reg    (ew_reg    ),
-    .pos_miinst(pos_miinst),
-    .pos_d     (pos_d     ),
-    .mem_addr  (mem_addr  ),
-    .st_data   (st_data   ),
-    .we        (we        ),
-    .ld_data   (ld_data   ),
-    .clk       (clk       ),
-    .rstn      (rstn      )
+    .de_reg    (de_reg       ),
+    .gpr       (gpr          ),
+    .ew_sig    (ew_sig       ),
+    .ew_reg    (ew_reg       ),
+    .pos_miinst(pos_miinst   ),
+    .pos_d     (pos_d        ),
+    .st_data   (virt_st_data ),
+    .ld_data   (virt_ld_data ),
+    .mem_addr  (virt_mem_addr),
+    .mem_bmd   (virt_mem_bmd ),
+    .we        (virt_we      ),
+    .clk       (clk          ),
+    .rstn      (rstn         )
   );
 
   write_back_phase #(
@@ -138,7 +153,26 @@ module core #(
     .fwd_val_from (fwd_val_from   ),
     .stall_phase  (stall_phase    ),
     .stall_pc     (stall_pc       ),
+    .out_busy     (out_busy       ),
     .clk          (clk            ),
     .rstn         (rstn           )
   );
+  
+  name_t name [POST_DEC_LD-1+1:0];
+
+  genvar i;
+  instruction_name_by_ascii inba_dec (
+    .miinst(deq_miinst_head),
+    .name(name[0])
+  );
+  generate
+  begin
+    for(i=0;i<POST_DEC_LD;i=i+1) begin : debug_no_tameni
+      instruction_name_by_ascii inba_pos (
+        .miinst(pos_miinst[i]),
+        .name(name[i+1])
+      );
+    end
+  end
+  endgenerate
 endmodule

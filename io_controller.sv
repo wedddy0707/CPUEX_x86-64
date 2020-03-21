@@ -1,52 +1,38 @@
-`default_nettype none
 `include "common_params.h"
+`include "common_params_svfiles.h"
 
 module io_controller #(
-  parameter ACTUAL_ADDR_W= 32,
   parameter INIT_POINTER =  0,
   parameter HIGH_POINTER = 10,
   parameter DEBUG_IGNORE_IN_BUSY        = 1'b0,
   parameter DEBUG_IGNORE_CONTEST_SERVER = 1'b1
 ) (
-  input wire                out_req,
-  input wire [`WORD_W-1:0]  out_data,
-  input wire [`ADDR_W-1:0]  consumer_pointer,
-  output wire                in_busy,
-  output wire               out_busy,
-  
-  output wire [`ADDR_W-1:0]  mem_addr,
-  output wire [`WORD_W-1:0]  mem_data,
-  output wire                mem_we,
-
-  // I/O via AXI4
-  // AXI4-lite master memory interface
-  // address write channel
-  output wire           axi_awvalid,
-  input wire            axi_awready,
-  output wire[31:0]     axi_awaddr,
-  output wire[2:0]      axi_awprot,
-  // data write channel
-  output wire           axi_wvalid,
-  input wire            axi_wready,
-  output wire[31:0]     axi_wdata,
-  output wire[3:0]      axi_wstrb,
-  // response channel
-  input wire            axi_bvalid,
-  output wire           axi_bready,
-  input wire [1:0]      axi_bresp,
-  // address read channel
-  output wire           axi_arvalid,
-  input wire            axi_arready,
-  output wire[31:0]     axi_araddr,
-  output wire[2:0]      axi_arprot,
-  // read data channel
-  input wire            axi_rvalid,
-  output wire           axi_rready,
-  input wire [31:0]     axi_rdata,
-  input wire [1:0]      axi_rresp,
-  
-  input wire clk,
-  input wire rstn
+  input  wire        out_req          ,
+  input  wire [31:0] out_data         ,
+  input  addr_t      consumer_pointer ,
+  output wire        in_busy          ,
+  output wire        out_busy         ,
+  output wire        axi_awvalid      ,
+  input  wire        axi_awready      ,
+  output wire [31:0] axi_awaddr       ,
+  output wire [ 2:0] axi_awprot       ,
+  output wire        axi_wvalid       ,
+  input  wire        axi_wready       ,
+  output wire [31:0] axi_wdata        ,
+  output wire [ 3:0] axi_wstrb        ,
+  input  wire        axi_bvalid       ,
+  output wire        axi_bready       ,
+  input  wire [ 1:0] axi_bresp        ,
+  output wire        axi_arvalid      ,
+  input  wire        axi_arready      ,
+  output wire [31:0] axi_araddr       ,
+  output wire [ 2:0] axi_arprot       ,
+  input  wire        axi_rvalid       ,
+  output wire        axi_rready       ,
+  input  wire [31:0] axi_rdata        ,
+  input  wire [ 1:0] axi_rresp        ,
+  input  wire        clk              ,
+  input  wire        rstn             //
 );
 
   wire [31:0] stat_reg;      // ステータスレジスタの情報を保持
@@ -68,9 +54,6 @@ module io_controller #(
     .consumer_pointer (consumer_pointer),
     .stat_reg         (stat_reg),
     .stat_reg_new     (stat_reg_new),
-    .mem_addr         (mem_addr),
-    .mem_data         (mem_data),
-    .mem_we           (mem_we),
     .in_busy          (in_busy),
     .clk              (clk),
     .rstn             (rstn)
@@ -104,26 +87,26 @@ endmodule
 module io_data_out #(
   DEBUG_IGNORE_CONTEST_SERVER = 1'b1
 ) (
-  output reg               axi_awvalid,
-  input wire               axi_awready,
-  output reg [31:0]        axi_awaddr,
-  output reg [2:0]         axi_awprot,
+  output reg           axi_awvalid,
+  input wire           axi_awready,
+  output reg [31:0]    axi_awaddr,
+  output reg [ 2:0]    axi_awprot,
   // data write channel
-  output reg               axi_wvalid,
-  input wire               axi_wready,
-  output reg [31:0]        axi_wdata,
-  output reg [3:0]         axi_wstrb,
+  output reg           axi_wvalid,
+  input wire           axi_wready,
+  output reg [31:0]    axi_wdata,
+  output reg [ 3:0]    axi_wstrb,
   // response channel
-  input wire               axi_bvalid,
-  output reg               axi_bready,
-  input wire [1:0]         axi_bresp,
+  input wire           axi_bvalid,
+  output reg           axi_bready,
+  input wire [ 1:0]    axi_bresp,
 
-  input wire [31:0]        stat_reg,
-  input wire               stat_reg_new,
+  input wire [31:0]    stat_reg,
+  input wire           stat_reg_new,
 
-  input wire               out_req,
-  input wire [`WORD_W-1:0] out_data,
-  output wire              out_busy,
+  input wire           out_req,
+  input wire [31:0]    out_data,
+  output wire          out_busy,
 
   input wire               clk,
   input wire               rstn
@@ -204,11 +187,6 @@ module io_data_out #(
         OUT_WAIT:
         begin
           out_state <= OUT_DATA_A;
-          /*
-          if (stat_reg[2:2] && stat_reg_new) begin
-            out_state <= OUT_DATA_A;
-          end
-          */
         end
         OUT_DATA_A:
         begin
@@ -272,30 +250,27 @@ module io_data_in #(
   parameter HIGH_POINTER         =   10,
   parameter DEBUG_IGNORE_IN_BUSY = 1'b0
 ) (
-  output wire              axi_arvalid,
-  input wire               axi_arready,
-  output wire[31:0]        axi_araddr,
-  output wire[2:0]         axi_arprot,
+  output wire         axi_arvalid,
+  input wire          axi_arready,
+  output wire[31:0]   axi_araddr,
+  output wire[ 2:0]   axi_arprot,
   // read data channel
-  input wire               axi_rvalid,
-  output wire              axi_rready,
-  input wire [31:0]        axi_rdata,
-  input wire [1:0]         axi_rresp,
+  input wire          axi_rvalid,
+  output wire         axi_rready,
+  input wire [31:0]   axi_rdata,
+  input wire [ 1:0]   axi_rresp,
 
-  input wire [`ADDR_W-1:0] consumer_pointer,
-  output wire[31:0]        stat_reg,
-  output wire              stat_reg_new,
-  output wire[`ADDR_W-1:0] mem_addr,
-  output wire[`WORD_W-1:0] mem_data,
-  output wire              mem_we,
-  output wire              in_busy,
-  input wire               clk,
-  input wire               rstn
+  input  addr_t       consumer_pointer,
+  output wire[31:0]   stat_reg,
+  output wire         stat_reg_new,
+  output wire         in_busy,
+  input wire          clk,
+  input wire          rstn
 );
-  wire [`WORD_W-1:0] mem_data_reg;
-  wire               mem_data_valid;
+  addr_t mem_data_reg;
+  logic  mem_data_valid;
 
-  wire [`ADDR_W-1:0] prod_pointer;
+  addr_t prod_pointer;
 
   assign in_busy = (DEBUG_IGNORE_IN_BUSY==1'b1) ? 0 : (consumer_pointer==prod_pointer);
 
@@ -315,37 +290,23 @@ module io_data_in #(
     .clk            (clk),
     .rstn           (rstn)
   );
-
-  io_data_store #(
-    INIT_POINTER,
-    HIGH_POINTER
-  ) io_data_store_1 (
-    .mem_data_reg   (mem_data_reg),
-    .mem_data_valid (mem_data_valid),
-    .prod_pointer   (prod_pointer),
-    .mem_addr       (mem_addr),
-    .mem_data       (mem_data),
-    .mem_we         (mem_we),
-    .clk            (clk),
-    .rstn           (rstn)
-  );
 endmodule
 
 module io_data_fetch (
-  output reg               axi_arvalid,
-  input wire               axi_arready,
-  output reg [31:0]        axi_araddr,
-  output reg [2:0]         axi_arprot,
+  output reg        axi_arvalid,
+  input wire        axi_arready,
+  output reg [31:0] axi_araddr,
+  output reg [ 2:0] axi_arprot,
   // read data channel
-  input wire               axi_rvalid,
-  output reg               axi_rready,
-  input wire [31:0]        axi_rdata,
-  input wire [1:0]         axi_rresp,
+  input wire        axi_rvalid,
+  output reg        axi_rready,
+  input wire [31:0] axi_rdata,
+  input wire [ 1:0] axi_rresp,
 
-  output reg [31:0]        stat_reg,
-  output reg               stat_reg_new,
-  output reg [`WORD_W-1:0] mem_data_reg,
-  output reg               mem_data_valid,
+  output reg [31:0] stat_reg,
+  output reg        stat_reg_new,
+  output reg [31:0] mem_data_reg,
+  output reg        mem_data_valid,
   
   input wire clk,
   input wire rstn
@@ -455,35 +416,3 @@ module io_data_fetch (
     end
   end
 endmodule
-
-module io_data_store #(
-  parameter INIT_POINTER = 0,
-  parameter HIGH_POINTER =10
-) (
-  input wire [`WORD_W-1:0] mem_data_reg,
-  input wire               mem_data_valid,
-  output reg [`ADDR_W-1:0] prod_pointer,
-  output reg [`ADDR_W-1:0] mem_addr,
-  output reg [`WORD_W-1:0] mem_data,
-  output reg               mem_we,
-  input wire               clk,
-  input wire               rstn
-);
-  always @(posedge clk) begin
-    if (~rstn) begin
-      prod_pointer <= INIT_POINTER;
-      mem_data     <= 0;
-      mem_addr     <= 0;
-      mem_we       <= 0;
-    end else if (mem_data_valid) begin
-      prod_pointer <= prod_pointer + 1;
-      mem_data     <= mem_data_reg;
-      mem_addr     <= prod_pointer;
-      mem_we       <= 1;
-    end else begin
-      mem_we       <= 0;
-    end
-  end
-endmodule
-
-`default_nettype wire

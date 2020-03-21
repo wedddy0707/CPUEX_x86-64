@@ -6,9 +6,9 @@ module transform_virt_phys #(
   parameter POST_DEC_LD     = 4,
   parameter IO_FILE_POINTER = 32'hfffff000
 ) (
-  input  addr_t       virt_mem_addr,
   input  logic        virt_we      ,
-  input   bmd_t       virt_bmd     ,
+  input  addr_t       virt_mem_addr,
+  input   bmd_t       virt_mem_bmd ,
   input   reg_t       virt_st_data ,
   input   reg_t       phys_ld_data ,
   output addr_t       phys_mem_addr,
@@ -20,23 +20,67 @@ module transform_virt_phys #(
   input  logic        clk          ,
   input  logic        rstn         //
 );
-  integer i;
+  
+  wire [2:0] position = virt_mem_addr[2:0];
+  reg  [2:0] position_queue [POST_DEC_LD-1:0];
 
-  reg [2:0] position [POST_DEC_LD-1:0];
-
+  /****************************
+  * Mainly About Store & Out.
+  *
+  */
   always @(posedge clk) begin
     if (~rstn) begin
       phys_we <= 0;
       out_req <= 0;
-    end else if (virt_mem_addr==IO_FILE_POINTER) begin
+    end else begin
       phys_we <= 0;
       out_req <= 0;
-      if (virt_we) begin // OUT
-        out_data <= virt_st_data[31:0];
-        out_req  <= 1;
-      end else begin     // IN
+      if (virt_mem_addr==IO_FILE_POINTER) begin // I/O
+        if (virt_we) begin // OUT
+          out_data <= virt_st_data[31:0];
+          out_req  <= 1;
+        end else begin     // IN
+        end
+      end else begin // Memory Access
+        phys_mem_addr <= addr_t'({3'b000,virt_mem_addr[`ADDR_W-1:3]});
+        phys_st_data  <=  reg_t'(virt_st_data << {position,3'b000});
+        phys_we       <=
+          (~virt_we             ) ? 8'h00            :
+          ( virt_mem_bmd==BMD_08) ? 8'h01 << position:
+          ( virt_mem_bmd==BMD_32) ? 8'h0f << position:
+          ( virt_mem_bmd==BMD_64) ? 8'hff <<         : 8'h00;
+      end
+    end
+  end
+
+  /****************************
+  * About Load Data.
+  *
+  */
+  integer i;
+  localparam LL = LOAD_LATENCY;
+  
+  assign virt_ld_data =
+    (position_queue[LL]==3'd0) ? reg_t'(phys_ld_data[`REG_W-1: 0]):
+    (position_queue[LL]==3'd1) ? reg_t'(phys_ld_data[`REG_W-1: 8]):
+    (position_queue[LL]==3'd2) ? reg_t'(phys_ld_data[`REG_W-1:16]):
+    (position_queue[LL]==3'd3) ? reg_t'(phys_ld_data[`REG_W-1:24]):
+    (position_queue[LL]==3'd4) ? reg_t'(phys_ld_data[`REG_W-1:32]):
+    (position_queue[LL]==3'd5) ? reg_t'(phys_ld_data[`REG_W-1:40]):
+    (position_queue[LL]==3'd6) ? reg_t'(phys_ld_data[`REG_W-1:48]):
+                                 reg_t'(phys_ld_data[`REG_W-1:56]);
+
+  always @(posedge clk) begin
+    if (~rstn) begin
+      for(i=0;i<POST_DEC_LD;i=i+1) begin
+        position_queue[i] <= 0;
       end
     end else begin
+      position_queue[0] <= position;
+
+      for(i=1;i<POST_DEC_LD;i=i+1) begin
+        position_queue[i] <= position_queue[i-1];
+      end
     end
   end
 endmodule
