@@ -1,12 +1,16 @@
 `include "common_params.h"
 `include "common_params_svfiles.h"
 
-`define PRIMITIVE_CALC_N   5
-`define PRIMITIVE_CALC_ADD 0
-`define PRIMITIVE_CALC_AND 1
-`define PRIMITIVE_CALC_OR  2
-`define PRIMITIVE_CALC_XOR 3
-`define PRIMITIVE_CALC_SLL 4
+`define PRIMITIVE_CALC_N 6
+
+typedef enum logic [2:0] {
+  CALC_ADD,
+  CALC_DIV,
+  CALC_AND, 
+  CALC_OR ,
+  CALC_XOR,
+  CALC_SLL
+} primitive_calc_t;
 
 module alu (
   input  miinst_t miinst       ,
@@ -29,19 +33,21 @@ module alu (
 
   always_comb begin
     case (op_alu)
-      MIOP_ADD:d<=pre_d[`PRIMITIVE_CALC_ADD];
-      MIOP_AND:d<=pre_d[`PRIMITIVE_CALC_AND];
-      MIOP_OR :d<=pre_d[`PRIMITIVE_CALC_OR ];
-      MIOP_XOR:d<=pre_d[`PRIMITIVE_CALC_XOR];
-      MIOP_SLL:d<=pre_d[`PRIMITIVE_CALC_SLL];
+      MIOP_ADD:d<=pre_d[CALC_ADD];
+      MIOP_DIV:d<=pre_d[CALC_DIV];
+      MIOP_AND:d<=pre_d[CALC_AND];
+      MIOP_OR :d<=pre_d[CALC_OR ];
+      MIOP_XOR:d<=pre_d[CALC_XOR];
+      MIOP_SLL:d<=pre_d[CALC_SLL];
       default :d<=0;
     endcase
     case (op_alu)
-      MIOP_ADD:eflags<=pre_e[`PRIMITIVE_CALC_ADD];
-      MIOP_AND:eflags<=pre_e[`PRIMITIVE_CALC_AND];
-      MIOP_OR :eflags<=pre_e[`PRIMITIVE_CALC_OR ];
-      MIOP_XOR:eflags<=pre_e[`PRIMITIVE_CALC_XOR];
-      MIOP_SLL:eflags<=pre_e[`PRIMITIVE_CALC_SLL];
+      MIOP_ADD:eflags<=pre_e[CALC_ADD];
+      MIOP_DIV:eflags<=pre_e[CALC_DIV];
+      MIOP_AND:eflags<=pre_e[CALC_AND];
+      MIOP_OR :eflags<=pre_e[CALC_OR ];
+      MIOP_XOR:eflags<=pre_e[CALC_XOR];
+      MIOP_SLL:eflags<=pre_e[CALC_SLL];
       default :eflags<=0;
     endcase
 
@@ -142,7 +148,7 @@ module reform_src_in_alu (
 endmodule
 
 module very_primitive_calc #(
-  parameter CALC = `PRIMITIVE_CALC_ADD
+  parameter CALC = CALC_ADD
 ) (
   output [`REG_W  :0] d,
   input  [`REG_W-1:0] s,
@@ -156,19 +162,22 @@ module very_primitive_calc #(
 
   generate
   begin
-    if      (CALC==`PRIMITIVE_CALC_ADD) begin: calc_add
+    if      (CALC==CALC_ADD) begin: calc_add
       assign d = signed'({msb(s),s})+signed'({msb(t),t});
     end
-    else if (CALC==`PRIMITIVE_CALC_AND) begin: calc_and
+    else if (CALC==CALC_DIV) begin: calc_div
+      assign d = signed'({msb(s),s})/signed'({msb(t),t});
+    end
+    else if (CALC==CALC_AND) begin: calc_and
       assign d = {1'b0,s}&{1'b0,t};
     end
-    else if (CALC==`PRIMITIVE_CALC_OR ) begin: calc_or
+    else if (CALC==CALC_OR ) begin: calc_or
       assign d = {1'b0,s}|{1'b0,t};
     end
-    else if (CALC==`PRIMITIVE_CALC_XOR) begin: calc_xor
+    else if (CALC==CALC_XOR) begin: calc_xor
       assign d = {1'b0,s}^{1'b0,t};
     end
-    else if (CALC==`PRIMITIVE_CALC_SLL) begin: calc_sll
+    else if (CALC==CALC_SLL) begin: calc_sll
       assign d = {1'b0,s} << t[5:0];
     end else begin : calc_nop
       assign d = 0;
@@ -178,7 +187,7 @@ module very_primitive_calc #(
 endmodule
 
 module primitive_calc #(
-  parameter CALC = `PRIMITIVE_CALC_ADD
+  parameter CALC = CALC_ADD
 ) (
   output reg_t d            ,
   output reg_t eflags       ,
@@ -189,7 +198,7 @@ module primitive_calc #(
 );
   genvar i;
 
-  localparam ARITHMETIC =(CALC==`PRIMITIVE_CALC_ADD);
+  localparam ARITHMETIC =(CALC==CALC_ADD);
 
   logic [`REG_W:0] d_with_bits_extended;
 

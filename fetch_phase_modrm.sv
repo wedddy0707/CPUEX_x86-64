@@ -80,6 +80,12 @@ module fetch_phase_modrm (
           begin
             // あとで
           end
+          GRP_3:
+          begin
+            case (inst[5:3])
+              default:begin miinst[`MQ_ARITH].op <= MIOP_DIV;name<="IDIV";end
+            endcase
+          end
           GRP_5:
           begin
              miinst[`MQ_STORE]  <= nop(pc);

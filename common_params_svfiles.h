@@ -78,6 +78,7 @@ typedef enum {
   MIOP_SUB ,
   MIOP_MUL ,
   MIOP_DIV ,
+  MIOP_IDIV,
   MIOP_AND ,
   MIOP_OR  ,
   MIOP_XOR ,

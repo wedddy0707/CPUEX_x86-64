@@ -107,7 +107,8 @@ module execute_memory_access #(
   output   reg_t st_data  ,
   output   logic we       
 );
-  assign st_data = d;
+  localparam ascii_zero = 48;
+  assign st_data =(miinst.op==MIOP_OUT) ? d+ascii_zero:d;
   assign we      =(miinst.op==MIOP_S)|(miinst.op==MIOP_OUT);
   assign mem_bmd = miinst.bmd;
 

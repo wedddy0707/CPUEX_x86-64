@@ -98,7 +98,9 @@ module fetch_phase_opcode_1 (
       8'b1111011?:// Grp3
       begin
         // if (?=0) 8-bit else 16/32/64-bit mode.
-
+        name                 <="PREFIX";
+        miinst[`MQ_LOAD].bmd <= bmd_det(~inst[0],rex_w);
+        state                <= make_state(MODRM,DST_RM,GRP_3);
       end
       8'hff:// Grp5, Call,Jmp,Push,etc...
       begin
